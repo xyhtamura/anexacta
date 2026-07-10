@@ -90,7 +90,8 @@ y : a
   0–7 ladder. Mutual loops allowed.
 - **Scope:** `t` (seconds since note-on) · `f0` (played Hz via keyfollow) ·
   sum indices `n,k,…` · full MENV function/const table (ported verbatim:
-  `iff odd even step between clamp mod prime fib …`, `pi e phi tau`).
+  `iff odd even step between clamp mod rnd prime fib …`, `pi e phi tau`).
+  `rnd()` returns 0..1; `rnd(max)` and `rnd(lo,hi)` scale the draw.
 - **PM, not FM** (decided): the DX7 was PM anyway; PM is drift-free and
   cleaner math. A true-FM `fm()` primitive (phase = integral of frequency) is
   a possible later addition, noted not planned.
@@ -325,6 +326,34 @@ Real remaining arcs (all parked, none blocking ship): oversampling toggle,
 op-art/Binakol structural accents (own session), real suminagashi texture (user
 sources; drops into the `--sumi-*` slots), `fm()` true-FM primitive, per-line
 stereo routing, index-shimmer slider, DEPENDENCIES.md edge for the DSL/MIDI copies.
+
+## Ideation 2026-07-10 (unbuilt, parked)
+
+**Dropped sound as f(t) — sound-as-modulator.** Suite idea (see
+`../aliquoto/suite.md`): a dropped soundfile becomes a value source in the
+grammar, never audio. Moire-specific angles, and moire may be where it bites
+hardest:
+
+- **Follower on modulation index** — the real sound *weaves the interference*:
+  file loudness = how deep the gratings press into each other. External sound
+  drives written → woven, the I× axis, over time.
+- **Follower on ratio wander** — drift depth from a real signal instead of the
+  LFO pair.
+- **Audio-rate file as a phase input** — `op(1, k*file1)` = PM cross-synthesis:
+  the file's waveform *is* the modulator. Strongest version of "physical sound
+  manipulates the digitally pure without wrecking it" — output still contains
+  only sines-of-something, but the something is the world.
+- Grammar: dropped files appear as named signals in scope (`file1` audio-rate,
+  `file1.env(t)`-style follower — naming to decide at build).
+
+**Series zero (negative filter).** Suite-wide idea, but moire is where it's
+*irreplaceable*: sidebands are emergent, so no `env(r)`-style amp scaling can
+ever reach them — there are no amps to scale. A ratio-defined anti-resonator
+**after the sum** (`y = x − k·pole(x)`, cella ideation) is the only way to
+sculpt woven lines. Keyfollows by construction; can carry `rnd()`/drift →
+wandering holes in the interference. Would be moire's first post-sum object —
+weigh against the "no filters, math only" instinct before building (it can be
+written *as* an equation line, which may resolve that).
 
 ## Open questions
 

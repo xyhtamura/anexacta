@@ -491,7 +491,7 @@ textarea:focus{border-color:var(--iris-green);box-shadow:inset 0 2px 14px #000a,
           <div><b>name : expr</b> &mdash; a named signal; <b>y :</b> (or the last line) is the output</div>
           <div>refs between lines = the modulation graph; a self / backward ref = 1-sample feedback</div>
           <div><b>sum n=1..N : expr</b> [<b>where</b> pred] &mdash; an operator family indexed by n</div>
-          <div>scope: <b>t f0 n</b> &middot; <b>pi e phi tau</b> &middot; <b>prime fib iff odd even step mod</b> &hellip;</div>
+          <div>scope: <b>t f0 n</b> &middot; <b>pi e phi tau</b> &middot; <b>prime fib rnd iff odd even step mod</b> &hellip;</div>
           <div><b>I&times;</b> scales every phase depth &mdash; <b>I&times;0</b> = pure carriers (the additive limit)</div>
         </div>
       </div>
@@ -715,15 +715,17 @@ function between(x,a,b){return x>=Math.min(a,b)&&x<=Math.max(a,b)?1:0}
 function clamp(x,a,b){return Math.min(Math.max(x,a),b)}
 function clip01(x){return clamp(x,0,1)}
 function mod(a,b){return ((a%b)+b)%b}
+function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0}return a+Math.random()*(b-a)}
 
 const RESERVED=new Set(("t f0 op OP sum where state S idxMul driftDepth driftRate pi e phi tau inf NaN Infinity " +
-  "sin cos tan asin acos atan atan2 exp log log10 sqrt pow abs min max floor ceil round random " +
+  "sin cos tan asin acos atan atan2 exp log log10 sqrt pow abs min max floor ceil round random rnd " +
   "iff odd even step between clamp clip01 mod prime fib let const var return if else for while function class new").split(/\s+/));
 const PRELUDE=`
 const tau=Math.PI*2, pi=Math.PI, e=Math.E, phi=(1+Math.sqrt(5))/2, inf=Infinity;
 const sin=Math.sin, cos=Math.cos, tan=Math.tan, asin=Math.asin, acos=Math.acos;
 const atan=Math.atan, atan2=Math.atan2, exp=Math.exp, log=Math.log, log10=Math.log10 || ((x)=>Math.log(x)/Math.LN10);
 const sqrt=Math.sqrt, pow=Math.pow, abs=Math.abs, min=Math.min, max=Math.max, floor=Math.floor, ceil=Math.ceil, round=Math.round;
+function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0}return a+Math.random()*(b-a)}
 function iff(c,a,b){return c?a:b}
 function odd(n){return Math.abs(Math.round(n))%2?1:0}
 function even(n){return odd(n)?0:1}
@@ -1088,7 +1090,7 @@ function texFunc(s,name,fn){ let out="",i=0; const re=new RegExp("\\b"+name+"\\s
 function texMath(s){ if(s==null) return ""; s=String(s).trim(); if(!s) return "";
   s=texFunc(s,"sqrt",x=>"\\sqrt{"+texMath(x)+"}");
   s=texFunc(s,"exp",x=>"e^{"+texMath(x)+"}");
-  s=s.replace(/\b(sin|cos|tan|asin|acos|atan|log10|log|abs|floor|ceil|round|min|max|mod|prime|fib|iff|clamp|step|between)\s*\(/g,(m,f)=>"\\mathrm{"+f+"}\\!(");
+  s=s.replace(/\b(sin|cos|tan|asin|acos|atan|log10|log|abs|floor|ceil|round|min|max|mod|prime|fib|rnd|iff|clamp|step|between)\s*\(/g,(m,f)=>"\\mathrm{"+f+"}\\!(");
   s=s.replace(/\bf0\b/g,"f_0").replace(/\bphi\b/g,"\\phi").replace(/\btau\b/g,"\\tau").replace(/\bpi\b/g,"\\pi");
   s=s.replace(/([\w.]+|\([^()]*\))\s*\^\s*([\w.]+|\([^()]*\))/g,"{$1}^{$2}");
   s=s.replace(/\*/g," \\cdot "); return s; }
