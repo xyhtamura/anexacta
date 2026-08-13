@@ -6,7 +6,7 @@ under that name in the portfolio (`../xyhtamura.github.io/index.html`,
 `#anexacta`), described there as "a set of equation-first synthesizers that expose
 spectral structure, tuning, modulation, and feedback as editable mathematics." The
 name covers the trio and any later member. Per-tool detail lives in each project's
-own `.md` (`aliquoto.md`, `../cella/cella.md`, `../moire/moire.md`).*
+own `.md` (`aliquoto/aliquoto.md`, `cella/cella.md`, `moire/moire.md`).*
 
 Shipped (2026-07): **Aliquoto**, **Cella**, **Moire** — each a single self-contained
 `index.html`, each in its own git repo.
@@ -101,7 +101,7 @@ as *life* rather than hash.
    (`../xyhtamura.github.io/roil/`) — 1D Perlin drives pitch/cutoff/Q/amp, each
    with independent depth + rate, control-rate ticked and smoothed. Plan: seeded
    Perlin `noise(x)` → −1..1 in every tool's expression scope (detail in
-   `aliquoto.md` → "Roil-style noise()").
+   `aliquoto/aliquoto.md` → "Roil-style noise()").
 2. **1.2 — file drop.** Aliquoto first (richest gain infra; keyfollow vocoder is
    the flagship claim); cella's drive port in the same arc (seam already designed —
    a dropped file is the first guest, no need to wait for a harvested member);
@@ -121,12 +121,12 @@ feature. Order: **aliquoto first** (richest engine, sets the skeleton), then
 cella and moire reuse it — same consequence as the shared-engine rule: new
 members are new definitions, and now new plugins are new definitions too.
 
-Route (full steps in `aliquoto.md` → "VST port"):
+Route (full steps in `aliquoto/aliquoto.md` → "VST port"):
 
 - **JUCE 8 + WebView GUI** — each tool's single-file HTML/CSS skin ports
   near-verbatim as the plugin UI; no asset baking. (Fallback if classic JUCE UI
   ever needed: an HTML asset-printer page exporting filmstrips/SVG — penciled in
-  `aliquoto.md`.)
+  `aliquoto/aliquoto.md`.)
 - **DSP → C++** (small: sine bank / resonator bank / PM operators per tool);
   **DSL via embedded QuickJS** for exact grammar parity.
 - **Prereq for all three:** engine extraction — DOM-free core file per tool,
@@ -161,7 +161,7 @@ input = PM cross-synthesis.
 
 Rate question to settle at build time: control-rate follower (per-block, the
 existing cella-dynamics grain, cheap) vs audio-rate reads. Per-tool notes in
-`aliquoto.md` / `../moire/moire.md`.
+`aliquoto/aliquoto.md` / `moire/moire.md`.
 
 ### Cella — negative filter (anti-resonance) *(expanded 2026-07-10)*
 A **negative/subtractive Cella**: instead of resonating frequencies *up*, scoop them
@@ -169,7 +169,7 @@ A **negative/subtractive Cella**: instead of resonating frequencies *up*, scoop 
 feature, and a natural ingredient when building **Fano** (the chimera wants both
 additive driven peaks and subtractive scoops acting on a substrate).
 
-Ideation findings (detail in `../cella/cella.md`):
+Ideation findings (detail in `cella/cella.md`):
 
 - Physics name: a **zero**, not a pole. Fundamentally asymmetric to the normal
   cella line — it requires sound present to be heard at all. A different entity,
@@ -484,6 +484,16 @@ tuning) the pitch grid. New members add new axes, not new engines.
 ---
 
 ## Log
+
+**2026-08-13 — Codex.** Migrated Aliquoto, Cella, and Moire into the Anexacta
+monorepo with their complete Git histories. Moved this suite plan to the
+repository root, added the collection landing page, and made this repository
+the only source of future code changes. The former repositories remain as
+redirects for their established Pages URLs. Verified the three imported heads
+remain ancestors of `main`, each instrument loads from its new subpath, and
+Aliquoto checks the canonical resolver at `/tabota/tabota-resolve.js`.
+Undone: the planned shared engine extraction remains arc 1.1; this migration
+does not extract or deduplicate the current hand-synced code.
 
 **2026-08-04 — Claude Code.** Ideation only, no code. Settled **member 5's
 architecture** and wrote it up as its own section: the unit is the **stage** (state

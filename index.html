@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Anexacta is a collection of equation-first browser synthesizers.">
+  <title>Anexacta — equation-first synthesizers</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e8e6df;
+      --muted: #9b9b97;
+      --line: #34343a;
+      --panel: rgba(20, 20, 24, .86);
+      --aliquoto: #a9c58f;
+      --cella: #d29a56;
+      --moire: #697edc;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: #0c0c0f; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 15%, rgba(96, 120, 76, .18), transparent 34rem),
+        radial-gradient(circle at 85% 78%, rgba(75, 85, 150, .18), transparent 38rem),
+        #0c0c0f;
+      font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+    }
+    main { width: min(1120px, calc(100% - 2rem)); margin: 0 auto; padding: 9vh 0 4rem; }
+    header { max-width: 760px; margin-bottom: clamp(3rem, 8vw, 7rem); }
+    .kicker { margin: 0 0 .8rem; color: var(--muted); font-size: .76rem; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 0; font: 500 clamp(3rem, 9vw, 7.5rem)/.9 Georgia, serif; letter-spacing: -.065em; }
+    header p { max-width: 650px; margin: 1.8rem 0 0; color: #c1c0bc; font-size: clamp(.95rem, 1.5vw, 1.12rem); line-height: 1.7; }
+    .members { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--line); background: var(--line); }
+    article { min-height: 330px; padding: clamp(1.4rem, 3vw, 2.2rem); background: var(--panel); display: flex; flex-direction: column; }
+    article::before { content: ""; display: block; width: 100%; height: 4px; margin-bottom: 2.5rem; background: var(--accent); }
+    article:nth-child(1) { --accent: var(--aliquoto); }
+    article:nth-child(2) { --accent: var(--cella); }
+    article:nth-child(3) { --accent: var(--moire); }
+    .mode { color: var(--accent); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
+    h2 { margin: .65rem 0 1rem; font: 400 clamp(2rem, 4vw, 3rem)/1 Georgia, serif; }
+    article p { margin: 0; color: #aaa9a5; line-height: 1.6; }
+    a.launch { align-self: flex-start; margin-top: auto; padding-top: 2.5rem; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--accent); }
+    a.launch:hover, a.launch:focus-visible { color: var(--accent); }
+    footer { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.4rem; color: var(--muted); font-size: .76rem; }
+    footer a { color: inherit; }
+    @media (max-width: 760px) {
+      main { padding-top: 3rem; }
+      .members { grid-template-columns: 1fr; }
+      article { min-height: 260px; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="kicker">mathematics-first synthesis</p>
+      <h1>Anexacta</h1>
+      <p>Three browser instruments expose spectral structure, tuning, modulation, and feedback as editable mathematics. Each one begins with a different account of how a spectrum is made.</p>
+    </header>
+
+    <section class="members" aria-label="Anexacta instruments">
+      <article>
+        <span class="mode">written · additive</span>
+        <h2>Aliquoto</h2>
+        <p>Write spectra as summations, envelopes, and conditionals over fractional, irrational, subharmonic, and moving partial ratios.</p>
+        <a class="launch" href="./aliquoto/">Open Aliquoto →</a>
+      </article>
+      <article>
+        <span class="mode">answered · resonant</span>
+        <h2>Cella</h2>
+        <p>Excite ratio-defined resonant modes with noise, then shape each line through damping, ensemble spread, and natural ring-out.</p>
+        <a class="launch" href="./cella/">Open Cella →</a>
+      </article>
+      <article>
+        <span class="mode">woven · phase modulation</span>
+        <h2>Moire</h2>
+        <p>Replace fixed operator charts with named equations, arbitrary modulation graphs, feedback, drift, and non-integer ratios.</p>
+        <a class="launch" href="./moire/">Open Moire →</a>
+      </article>
+    </section>
+
+    <footer>
+      <span>Build-free · Web Audio · runs in the browser</span>
+      <a href="./suite.md">Suite notes</a>
+    </footer>
+  </main>
+</body>
+</html>
+

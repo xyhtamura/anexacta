@@ -909,7 +909,7 @@ function loadTabota(text,name){
 function readTabFile(file){ if(!file)return; const r=new FileReader(); r.onload=()=>loadTabota(r.result,file.name); r.readAsText(file); }
 
 /* background live-check (http only): compare canonical resolver hash → notify, never auto-swap */
-const TABOTA_LIVE_URL="../tabota/tabota-resolve.js", CANON_SHA="5bb1de3efb2d951c";
+const TABOTA_LIVE_URL="/tabota/tabota-resolve.js", CANON_SHA="5bb1de3efb2d951c";
 async function sha16(t){ try{ const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("").slice(0,16); }catch(e){ return null; } }
 async function liveCheck(){ if(location.protocol==="file:") return;

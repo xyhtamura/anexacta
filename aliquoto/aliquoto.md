@@ -13,7 +13,7 @@ and the math is kept visible, not hidden inside an engine.
 *aliquot* = a part contained in a whole an exact number of times (a divisor/multiple);
 also the *aliquot strings* of pianos and harps that ring in sympathetic overtones.
 
-Sibling to **Cycla** (`../tabota/cycla/builder/index.html`): Cycla is a tuning of *meter*
+Sibling to **Cycla** (`../../tabota/cycla/builder/index.html`): Cycla is a tuning of *meter*
 (recursive subdivision); aliquoto is a tuning of *timbre* (the sum of sines). Same
 counter-poetics — both work the interstitial positions a standard grid disallows
 (12-TET for pitch, integer harmonics for timbre).
@@ -153,7 +153,7 @@ Single file, `index.html` (~1500 lines). Key state + seams:
 - **`.tabota` import** — vendored `tabota-resolve.js` (classic script, stamped
   with source commit; strips the one `export`; loads from `file://`).
   `resolvedToNotes()` plays the determinate fragment; background hash check vs
-  `../tabota/tabota-resolve.js` shows a "resolver ✱" chip (notify-only). No MIDI
+  `/tabota/tabota-resolve.js` shows a "resolver ✱" chip (notify-only). No MIDI
   anywhere in the Tabota path.
 - **Tuning** — `TUNING.edo` n-EDO, `stepToHz(step)=A4·2^((step+edo·oct)/edo)`.
 - **Surfaces** — piano (retuned) / isomorphic hex (QWERTY rows z…/a…/q…/1… map
@@ -260,7 +260,7 @@ non-idle) and canvas width can read 0 in headless eval — test via
 
 ### Dropped sound as f(t) — sound-as-modulator (ideation 2026-07-10, unbuilt)
 Drop a soundfile / noise source; it becomes a **value source over time** in the
-grammar, never audio. Suite framing (see `suite.md`): real sound as *modulator*,
+grammar, never audio. Suite framing (see `../suite.md`): real sound as *modulator*,
 third role beside substrate (Horn of Plenty) and excitation (Cella drive/Fano).
 The sines stay pure sines by construction — the file is dereferenced, not mixed.
 Aliquoto-specific notes:
@@ -278,7 +278,7 @@ Aliquoto-specific notes:
 - Grammar sketch (decide at build): dropped files get names in expression scope,
   e.g. `file1(t)` = follower value, `file1(hz,t)` = band energy at hz. Rate:
   per-block (cella-dynamics grain) is likely enough; audio-rate is a later call.
-- Negative-filter suite idea (see `suite.md`) needs nothing new here: an
+- Negative-filter suite idea (see `../suite.md`) needs nothing new here: an
   `env : f(r)` with a dip already *is* the keyfollowing notch, because aliquoto's
   lines are discrete.
 
@@ -359,7 +359,7 @@ dynamic overrides can bake (8th field vs `gain@id : f(t)`).
 - `index.html` — the whole instrument (single file; the dev artifact).
 - `index dark version.html` — the earlier dark spectral-bloom skin, kept as backup.
 - `tabota-resolve.js` — vendored Tabota resolver (classic-script build; header
-  stamp says which `../tabota/` commit it was copied from and how to re-vendor).
+  stamp says which `../../tabota/` commit it was copied from and how to re-vendor).
 - `IntraNet.otf`, `Seona-DEMO.otf` — local display faces for the LCD skin.
 - `aliquoto.md` — this file: roadmap, spec, and private LLM-facing documentation.
 
@@ -371,3 +371,12 @@ per-partial ADSR, gain, keyfollow) · selection/override/bake graphic editing
 model + `.tabota` import · naked-math card. Development wrapped here by choice;
 next arcs live in the roadmap above (move snapping + extras 5–6, then the
 carried-forward list).
+
+## Log
+
+**2026-08-13 — Codex.** Imported Aliquoto into the Anexacta monorepo without
+squashing its history. Updated the live resolver freshness check to the stable
+same-origin path `/tabota/tabota-resolve.js`; the vendored resolver remains
+unchanged. Updated suite and workspace-relative documentation links. Verified
+the new `/anexacta/aliquoto/` route and the resolver request through the shared
+root server. Undone: resolver freshness remains notify-only, as before.

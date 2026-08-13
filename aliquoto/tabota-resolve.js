@@ -1,7 +1,7 @@
 /* VENDORED into aliquoto — classic-script build (the sole `export` on the
    resolve() line is stripped; window.TabotaResolve still self-registers, so
    this loads via <script src> even from file://).
-   SOURCE: ../tabota/tabota-resolve.js @ commit c060e74 (2026-06-12) · sha256:5bb1de3efb2d951c
+   SOURCE: ../../tabota/tabota-resolve.js @ commit c060e74 (2026-06-12) · sha256:5bb1de3efb2d951c
    To update: re-copy from tabota, re-strip the `export` keyword, bump this stamp. */
 /* ============================================================
    tabota-resolve.js  —  the shared Tabota v2 resolver

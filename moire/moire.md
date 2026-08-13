@@ -330,7 +330,7 @@ stereo routing, index-shimmer slider, DEPENDENCIES.md edge for the DSL/MIDI copi
 ## Ideation 2026-07-10 (unbuilt, parked)
 
 **Dropped sound as f(t) — sound-as-modulator.** Suite idea (see
-`../aliquoto/suite.md`): a dropped soundfile becomes a value source in the
+`../suite.md`): a dropped soundfile becomes a value source in the
 grammar, never audio. Moire-specific angles, and moire may be where it bites
 hardest:
 
@@ -372,6 +372,14 @@ Still open (none blocking ship):
 - `fm()` true-frequency-modulation primitive — ever?
 - Skin: op-art (50s Riley/Vasarely) + Philippine Binakol as structural accents
   (borders/thumbs/active states) — considered, not yet built. Own session.
+
+## Log
+
+**2026-08-13 — Codex.** Imported Moire into the Anexacta monorepo without
+squashing its history and updated its suite link for the new repository layout.
+Verified the `/anexacta/moire/` route through the shared root server. Undone:
+oversampling and the other parked instrument work remain unchanged; shared
+engine extraction begins with suite arc 1.1.
 
 ---
 

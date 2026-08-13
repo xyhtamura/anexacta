@@ -91,7 +91,7 @@ Q) and ensemble spread (inhomogeneous). Dirac delta = both zero = sine.
   beating). Physical vs hygienic.
 - **Input port designed now, filled later:** an arbitrary drive buffer is the
   chimera seam. First guest (decided 2026-07-10): a **dropped soundfile** —
-  file rings the room; part of suite arc 1.2 (see `../aliquoto/suite.md`).
+  file rings the room; part of suite arc 1.2 (see `../suite.md`).
   A stationarized substrate (Horn of Plenty output — it exists as a tool at
   `../hindcasts/horn-of-plenty/`) is a natural later guest.
 - ADSR gates the drive (see Philosophy). `R` becomes an optional override;
@@ -413,7 +413,7 @@ already works); a new line head for the series form, e.g.
 Suite echoes: aliquoto already has this as sugar (`env` dip over discrete
 lines); moire needs it most (emergent sidebands unreachable by any env — a
 series zero after the sum is the only sculpting tool); Fano wants both signs
-acting on one substrate. See `../aliquoto/suite.md`.
+acting on one substrate. See `../suite.md`.
 
 ## Open questions
 
@@ -423,6 +423,13 @@ acting on one substrate. See `../aliquoto/suite.md`.
 - Ensemble size K: fixed small (3–7) vs user-set vs derived from spread.
 - Tabota note model: adopt aliquoto's `noteToEvent` wholesale? (Probably yes —
   spectrum rides in `payload` the same way.)
+
+## Log
+
+**2026-08-13 — Codex.** Imported Cella into the Anexacta monorepo without
+squashing its history and updated suite links for the new repository layout.
+Verified the `/anexacta/cella/` route through the shared root server. Undone:
+the shared engine remains hand-synced; extraction begins with suite arc 1.1.
 
 ---
 
