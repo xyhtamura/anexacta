@@ -1,7 +1,8 @@
 # Anexacta
 
 Anexacta is a collection of equation-first browser synthesizers. Each member
-uses editable mathematics to determine how a spectrum comes into being:
+uses the same mathematical-definition language for ratios, envelopes, time,
+tuning, and keyfollow, then applies it to a different signal path:
 
 - **Aliquoto** writes spectra as additive partials.
 - **Cella** excites ratio-defined resonant modes.
@@ -28,4 +29,3 @@ repositories remain only to redirect their established GitHub Pages URLs.
 
 Suite-wide direction and shared-engine decisions live in [suite.md](suite.md).
 Per-instrument implementation notes remain beside each instrument.
-

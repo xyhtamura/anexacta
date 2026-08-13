@@ -9,7 +9,7 @@ name covers the trio and any later member. Per-tool detail lives in each project
 own `.md` (`aliquoto/aliquoto.md`, `cella/cella.md`, `moire/moire.md`).*
 
 Shipped (2026-07): **Aliquoto**, **Cella**, **Moire** — each a single self-contained
-`index.html`, each in its own git repo.
+`index.html` in its own subdirectory of the shared repository.
 
 ---
 
@@ -484,6 +484,17 @@ tuning) the pitch grid. New members add new axes, not new engines.
 ---
 
 ## Log
+
+**2026-08-14 — Codex.** Reskinned the collection landing page as a single,
+slightly asymmetric instrument cabinet using the shared design principles:
+hued near-neutrals, mixed flat and tactile surfaces, irregular radii, immediate
+access, and no regular card grid. Removed the *written*, *answered*, and *woven*
+labels from the landing page, retained the technical synthesis types, and added
+an explicit shared-language explanation connecting `n`, `f₀`, and `t` to the
+three signal paths. Updated the README summary to match. Verified the page at
+desktop and 390 px widths with no horizontal overflow, and checked all local
+links return HTTP 200. Undone: the shared engine remains hand-synced; arc 1.1 is
+still next.
 
 **2026-08-13 — Codex.** Migrated Aliquoto, Cella, and Moire into the Anexacta
 monorepo with their complete Git histories. Moved this suite plan to the
