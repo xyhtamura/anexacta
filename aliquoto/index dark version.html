@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aliquot — additive dequantizer · the spectrum before the synth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<style>
+:root{
+  --bg:#0a0f0c; --panel:#0f1613; --panel2:#0c120f; --raise:#141d18;
+  --edge:#243029; --edge2:#33463b; --ink:#d9e8de; --dim:#7f978a; --faint:#54685c;
+  --lcd-bg:#08150c; --lcd:#79f0a2; --lcd-dim:#2f7a4a;
+  --cyan:#39d9f0; --violet:#9a7bff; --magenta:#ff45a6; --amber:#ffb02e; --lime:#b6f24a;
+  --disp:"Space Grotesk",system-ui,sans-serif; --mono:"Space Mono",ui-monospace,monospace; --lcdf:"VT323",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{ margin:0; font-family:var(--mono); color:var(--ink); background:var(--bg);
+  display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(120% 90% at 100% 0%, #12241a 0%, transparent 55%),
+    radial-gradient(100% 80% at 0% 100%, #1a1030 0%, transparent 50%),
+    var(--bg); }
+body::after{ content:""; position:fixed; inset:0; pointer-events:none; z-index:99; opacity:.055; mix-blend-mode:screen;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"); }
+
+header{ position:relative; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:12px 20px; border-bottom:1px solid var(--edge2);
+  background:linear-gradient(180deg,#121b16,#0c120f); }
+.brand{ font-family:var(--disp); font-weight:700; font-size:23px; letter-spacing:.5px; color:var(--ink); }
+.brand b{ color:var(--cyan); text-shadow:0 0 14px #39d9f088; }
+.tag{ font-size:11px; color:var(--dim); letter-spacing:.14em; text-transform:uppercase }
+.grow{ flex:1 }
+.hbtn{ font-family:var(--mono); font-size:12px; color:var(--ink); background:var(--raise); border:1px solid var(--edge2);
+  border-radius:8px; padding:8px 13px; cursor:pointer; transition:.13s }
+.hbtn:hover{ border-color:var(--cyan); color:var(--cyan) }
+#startBtn{ background:linear-gradient(180deg,#123,#0b1a12); border-color:#1f6b4a; color:var(--lcd); font-weight:700 }
+#startBtn.on{ background:linear-gradient(180deg,#0d3,#0a7a3e); color:#04140a; border-color:#0a7a3e; box-shadow:0 0 18px #0d3a }
+#midiStat{ font-size:11px; color:var(--faint); font-family:var(--lcdf); font-size:15px }
+
+.wrap{ display:flex; flex:1; min-height:0 }
+@media(max-width:980px){ .wrap{ flex-direction:column } }
+.side{ width:400px; max-width:100%; flex:0 0 auto; display:flex; flex-direction:column;
+  border-right:1px solid var(--edge2); background:linear-gradient(180deg,#0e1512,#0b110e); }
+@media(max-width:980px){ .side{ width:100%; border-right:none; border-bottom:1px solid var(--edge2) } }
+.side .pad{ padding:14px 15px; display:flex; flex-direction:column; gap:12px; overflow:auto }
+.main{ flex:1; min-width:0; display:flex; flex-direction:column; padding:13px 15px; gap:10px }
+
+.seclabel{ font-family:var(--disp); font-weight:500; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin:2px 0 -3px }
+.seclabel .ye{ color:var(--lcd); font-family:var(--lcdf); font-size:16px; letter-spacing:0; text-transform:none }
+.row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+label.field{ display:flex; flex-direction:column; gap:3px; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em }
+select,input[type=number],input[type=text],textarea{
+  font-family:var(--mono); font-size:12.5px; color:var(--ink);
+  background:var(--panel2); border:1px solid var(--edge2); border-radius:7px; padding:6px 8px; }
+input[type=number]{ width:70px }
+input:focus,textarea:focus{ outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px #39d9f022 }
+textarea#grammar{ font-size:13px; line-height:1.65; width:100%; min-height:150px; resize:vertical; tab-size:2; border-radius:10px; padding:11px 12px;
+  color:var(--lcd); background:var(--lcd-bg); border-color:#1c3a28; }
+.presets{ display:flex; flex-wrap:wrap; gap:5px }
+.chip{ font-family:var(--mono); font-size:11px; color:var(--dim); background:var(--raise); border:1px solid var(--edge2);
+  border-radius:16px; padding:4px 10px; cursor:pointer; transition:.12s }
+.chip:hover{ color:var(--cyan); border-color:var(--cyan) }
+.btn{ font-family:var(--mono); font-size:12px; color:var(--ink); background:var(--raise); border:1px solid var(--edge2);
+  border-radius:8px; padding:7px 10px; cursor:pointer; transition:.13s; line-height:1 }
+.btn:hover{ border-color:var(--cyan); color:var(--cyan) }
+.err{ font-size:11.5px; min-height:16px; color:var(--magenta); line-height:1.4 }
+.err.ok{ color:var(--lcd-dim) }
+.divider{ height:1px; background:var(--edge); margin:2px 0 }
+.help{ font-size:11px; color:var(--faint); line-height:1.6 }
+.help code{ color:var(--dim); background:var(--panel2); border:1px solid var(--edge2); border-radius:4px; padding:0 4px }
+.help b{ color:var(--dim) }
+.sliderrow{ display:grid; grid-template-columns:60px 1fr 52px; gap:9px; align-items:center; margin:1px 0 }
+.sliderrow span{ font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em }
+.sliderrow output{ font-family:var(--lcdf); font-size:16px; text-align:right; color:var(--lcd) }
+input[type=range]{ width:100%; accent-color:var(--cyan) }
+
+.screen{ position:relative; border:1px solid var(--edge2); border-radius:12px; overflow:hidden;
+  background:radial-gradient(120% 120% at 50% 0%, #0d1a12, #060c08);
+  box-shadow:inset 0 0 40px #000a, 0 12px 30px -24px #000; }
+.screen .cap{ position:absolute; top:7px; left:11px; font-size:10px; color:var(--faint); letter-spacing:.1em; z-index:2; font-family:var(--lcdf); font-size:15px }
+.screen .cap .hint{ color:var(--lcd-dim) }
+#specCard{ flex:1.15; min-height:190px } #waveCard{ flex:.9; min-height:140px }
+canvas{ display:block; width:100%; height:100% }
+#spec{ cursor:ns-resize }
+.readout{ display:flex; gap:14px; flex-wrap:wrap; font-family:var(--lcdf); font-size:17px; color:var(--lcd-dim); padding:0 3px; align-items:baseline }
+.readout b{ color:var(--lcd) } .readout .warn{ color:var(--amber) }
+
+/* keyboard */
+#kbWrap{ overflow-x:auto; padding-bottom:2px }
+#keyboard{ position:relative; height:132px; user-select:none; touch-action:none; min-width:560px }
+.wk{ position:absolute; top:0; bottom:0; background:linear-gradient(#1a231d,#0e150f);
+  border:1px solid #2c3a30; border-radius:0 0 6px 6px; cursor:pointer; box-shadow:inset 0 -6px 10px -8px #000 }
+.wk.active{ background:linear-gradient(var(--cyan),#0f7f8c); border-color:var(--cyan); box-shadow:0 0 14px #39d9f077 }
+.bk{ position:absolute; top:0; height:62%; background:linear-gradient(#0c110e,#050806);
+  border:1px solid #000; border-radius:0 0 5px 5px; z-index:2; cursor:pointer; box-shadow:0 3px 6px #000a }
+.bk.active{ background:linear-gradient(var(--magenta),#8a1f5a); box-shadow:0 0 14px #ff45a677 }
+.klabel{ position:absolute; bottom:5px; left:0; right:0; text-align:center; font:13px var(--lcdf); color:var(--faint); pointer-events:none }
+
+/* modal */
+#modal{ position:fixed; inset:0; z-index:200; display:none; background:#05080699; backdrop-filter:blur(3px); }
+#modal.open{ display:flex; align-items:center; justify-content:center; padding:24px }
+.card{ width:min(760px,100%); max-height:88vh; overflow:auto; background:linear-gradient(180deg,#101a14,#0b120e);
+  border:1px solid var(--edge2); border-radius:16px; box-shadow:0 30px 80px -30px #000, 0 0 0 1px #39d9f011;
+  padding:20px 22px; }
+.card h2{ font-family:var(--disp); font-weight:700; font-size:18px; margin:0 0 2px; color:var(--ink) }
+.card h2 b{ color:var(--cyan) }
+.card .close{ float:right; cursor:pointer; color:var(--dim); border:1px solid var(--edge2); border-radius:8px; padding:4px 10px; font-size:13px }
+.card .close:hover{ color:var(--magenta); border-color:var(--magenta) }
+.tabs{ display:flex; gap:6px; margin:14px 0 12px }
+.tabs .t{ font-size:12px; padding:6px 12px; border:1px solid var(--edge2); border-radius:8px; cursor:pointer; color:var(--dim) }
+.tabs .t.on{ color:var(--cyan); border-color:var(--cyan); background:#0d1a13 }
+.pane{ display:none } .pane.on{ display:block }
+.eqbox{ background:var(--lcd-bg); border:1px solid #1c3a28; border-radius:10px; padding:14px 16px; margin:10px 0; overflow-x:auto; color:var(--ink) }
+.eqbox .katex{ color:#dff6e7 }
+.deflist{ font-family:var(--mono); font-size:12px; color:var(--dim); line-height:1.9 }
+.deflist b{ color:var(--lcd) }
+#envPlot{ width:100%; height:150px; background:var(--lcd-bg); border:1px solid #1c3a28; border-radius:10px }
+table.tbl{ width:100%; border-collapse:collapse; font-family:var(--lcdf); font-size:17px }
+table.tbl th{ position:sticky; top:0; text-align:right; color:var(--lcd-dim); border-bottom:1px solid #1c3a28; padding:3px 12px; background:#0b120e }
+table.tbl td{ text-align:right; color:var(--lcd); padding:2px 12px; border-bottom:1px solid #0f1d14 }
+table.tbl td.sub{ color:var(--amber) } table.tbl td.inh{ color:var(--violet) }
+.tblWrap{ max-height:50vh; overflow:auto; border:1px solid #1c3a28; border-radius:10px; background:var(--lcd-bg) }
+::-webkit-scrollbar{ width:11px;height:11px } ::-webkit-scrollbar-thumb{ background:var(--edge2); border-radius:6px; border:2px solid var(--panel) } ::-webkit-scrollbar-track{ background:transparent }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>◈</b> Aliquot</div>
+  <span class="tag">pure additive · arbitrary ratios · the spectrum before the synth</span>
+  <span class="grow"></span>
+  <span id="midiStat">MIDI —</span>
+  <button class="hbtn" id="mathBtn">ƒ math</button>
+  <button class="hbtn" id="startBtn">▶ enable audio</button>
+</header>
+
+<div class="wrap">
+  <aside class="side"><div class="pad">
+
+    <div class="seclabel">presets</div>
+    <div class="presets" id="presets"></div>
+
+    <div class="seclabel">spectrum <span class="ye">Y=</span></div>
+    <textarea id="grammar" spellcheck="false"></textarea>
+    <div class="err ok" id="err">ready</div>
+    <div class="row">
+      <button class="btn" id="applyBtn">apply · Ctrl↵</button>
+      <button class="btn" id="normBtn">normalize</button>
+      <button class="btn" id="bakeBtn">⤓ bake</button>
+      <label class="field" style="margin-left:auto">Σ ceil <input type="number" id="ceil" value="32" min="1" max="256"></label>
+    </div>
+    <div class="row" style="align-items:flex-end">
+      <label class="field"><b style="color:var(--cyan)">X</b> pitch Hz <input type="number" id="xref" value="261.63" min="20" max="8000" step="0.01" style="width:88px"></label>
+      <span class="help" style="flex:1;margin:0">the reference <code>hz</code>/<code>f0</code> resolve against — <b>keyfollow</b>. Fixed today; becomes the played note later (multi-instrument keyboard).</span>
+    </div>
+    <div class="help">
+      <b>partial</b> <code>r : a : p°</code> · <b>sum</b> <code>sum n=1..N : r(n) : a(n) : p(n)</code> (<code>N=inf</code>→ceil; two indices = product) · <b>env</b> <code>env : f(r)</code> · filter with <b>where</b> <code>sum … where PRED</code>.<br>
+      in <b>a</b>/<b>p</b>/<b>env</b>/<b>where</b> you also have <code>r</code> (this partial's ratio), <code>hz</code> (=r·X), <code>f0</code> (=X). <b>conditionals</b> <code>iff(cond,a,b)</code> <code>odd(n)</code> <code>even(n)</code> <code>step</code> <code>between</code> <code>clamp</code> · compare <code>&lt; &gt; &lt;= &gt;= == != &amp;&amp; ||</code> (true=1).<br>
+      fns <code>prime fib sin cos exp log sqrt pow abs mod</code> · consts <code>pi e phi tau</code> · <code>^</code> power · <code>#</code> comment. Drag a partial = amp; <b>bake</b> writes it back as math.
+    </div>
+
+    <div class="divider"></div>
+    <div class="seclabel">voice</div>
+    <div class="row">
+      <label class="field">A4 Hz <input type="number" id="a4" value="440" min="380" max="480"></label>
+      <label class="field">oct <input type="number" id="oct" value="0" min="-3" max="3" style="width:54px"></label>
+      <label class="field">voices <input type="number" id="maxVoices" value="10" min="1" max="24" style="width:58px"></label>
+    </div>
+    <div class="sliderrow"><span>master</span><input type="range" id="master" min="0" max="1" step=".001" value=".5"><output id="masterV"></output></div>
+    <div class="sliderrow"><span>attack</span><input type="range" id="atk" min=".001" max="2" step=".001" value=".01"><output id="atkV"></output></div>
+    <div class="sliderrow"><span>decay</span><input type="range" id="dec" min=".001" max="3" step=".001" value=".2"><output id="decV"></output></div>
+    <div class="sliderrow"><span>sustain</span><input type="range" id="sus" min="0" max="1" step=".001" value=".7"><output id="susV"></output></div>
+    <div class="sliderrow"><span>release</span><input type="range" id="rel" min=".001" max="4" step=".001" value=".4"><output id="relV"></output></div>
+
+    <div class="divider"></div>
+    <div class="seclabel">per-partial drift</div>
+    <div class="sliderrow"><span>spread¢</span><input type="range" id="driftC" min="0" max="50" step=".5" value="0"><output id="driftCV"></output></div>
+    <div class="sliderrow"><span>rate Hz</span><input type="range" id="driftR" min="0" max="8" step=".01" value="0"><output id="driftRV"></output></div>
+    <div class="help">spread = static random detune per partial · rate&gt;0 = each partial slowly wanders. Dequantize the dead-steady tone.</div>
+  </div></aside>
+
+  <main class="main">
+    <div class="screen" id="specCard"><div class="cap">SPECTRUM <span class="hint">· log₂ ratio axis · drag partial = amp</span></div><canvas id="spec"></canvas></div>
+    <div class="screen" id="waveCard"><div class="cap">WAVE <span class="hint">· Σ aₙ sin(2π rₙ t + φₙ) · live=magenta</span></div><canvas id="wave"></canvas></div>
+    <div class="readout" id="readout"></div>
+    <div class="seclabel">keyboard <span style="text-transform:none;letter-spacing:0;color:var(--faint)">— click · QWERTY a s d f… (z/x oct) · MIDI</span></div>
+    <div class="screen" style="padding:8px 10px"><div id="kbWrap"><div id="keyboard"></div></div></div>
+  </main>
+</div>
+
+<div id="modal"><div class="card">
+  <span class="close" id="modalClose">✕ esc</span>
+  <h2><b>ƒ</b> the math, naked</h2>
+  <div class="help" style="margin:2px 0 4px">Pure sine sums pushed toward their monstrous conclusion. The raw spectral math <em>is</em> the instrument — filters, unison, fx belong downstream. Here the equation is the interface, not a hidden engine.</div>
+  <div class="tabs">
+    <div class="t on" data-p="eq">equation</div>
+    <div class="t" data-p="env">envelope</div>
+    <div class="t" data-p="tbl">table</div>
+  </div>
+  <div class="pane on" id="pane-eq">
+    <div class="help">Every voice is a sum of pure sines. Each partial n: ratio <b>r(n)</b> × fundamental f₀, amplitude <b>a(n)</b>, phase <b>p(n)</b>.</div>
+    <div class="eqbox" id="eqGeneral"></div>
+    <div class="seclabel" style="margin:14px 0 0">your spectrum</div>
+    <div class="eqbox" id="eqLive"></div>
+    <div class="deflist" id="eqDefs"></div>
+  </div>
+  <div class="pane" id="pane-env">
+    <div class="help">The spectral envelope <b>â(r)</b> = product of your <code>env</code> lines, a function of ratio r. It multiplies each partial's amplitude — the bijective pitch→amp map. Dots = your partials sitting on the curve.</div>
+    <canvas id="envPlot"></canvas>
+    <div class="deflist" id="envDefs"></div>
+  </div>
+  <div class="pane" id="pane-tbl">
+    <div class="help">The sum computed — TI TABLE style. <span style="color:var(--amber)">amber</span> = subharmonic (r&lt;1), <span style="color:var(--violet)">violet</span> = inharmonic.</div>
+    <div class="tblWrap"><table class="tbl" id="partTable"></table></div>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* ---------- math env for the DSL ---------- */
+const PRIMES=(()=>{const a=[],lim=4000,s=new Uint8Array(lim).fill(1);
+  for(let i=2;i<lim;i++){if(s[i]){a.push(i);for(let j=i*i;j<lim;j+=i)s[j]=0;}}return a;})();
+function prime(n){n=Math.max(1,Math.round(n));return PRIMES[n-1]||PRIMES[PRIMES.length-1];}
+function fib(n){n=Math.max(1,Math.round(n));let a=1,b=1;for(let i=2;i<n;i++)[a,b]=[b,a+b];return b;}
+const MENV={prime,fib,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
+  sqrt:Math.sqrt,pow:Math.pow,abs:Math.abs,floor:Math.floor,round:Math.round,sign:Math.sign,
+  min:Math.min,max:Math.max,pi:Math.PI,e:Math.E,tau:2*Math.PI,phi:(1+Math.sqrt(5))/2,
+  // conditionals / piecewise
+  iff:(c,a,b)=>c?a:b, odd:n=>(Math.round(n)%2!==0)?1:0, even:n=>(Math.round(n)%2===0)?1:0,
+  not:x=>x?0:1, clamp:(x,lo,hi)=>Math.min(hi,Math.max(lo,x)), step:(edge,x)=>x>=edge?1:0,
+  between:(x,lo,hi)=>(x>=lo&&x<=hi)?1:0, mod:(a,b)=>((a%b)+b)%b};
+const MKEYS=Object.keys(MENV);
+function compileExpr(expr,vars){
+  expr=expr.replace(/\*\*/g,"^").replace(/\^/g,"**");
+  if(/[^0-9a-zA-Z_.+\-*/%(),<>=!&|\s]/.test(expr)) throw new Error("bad char in: "+expr);
+  const ids=expr.match(/[a-zA-Z_]\w*/g)||[];
+  for(const id of ids) if(!vars.includes(id)&&!(id in MENV)) throw new Error("unknown name: "+id);
+  const fn=new Function(...vars,...MKEYS,"return ("+expr+");");
+  return (...v)=>fn(...v,...MKEYS.map(k=>MENV[k]));
+}
+const K=s=>compileExpr(s,[])();
+
+/* ---------- grammar -> partials (+ meta for the math card) ---------- */
+const MAXPARTS=1024;
+function parseBound(tok,ceil){ tok=tok.trim();
+  if(/^(inf|infinity|∞|\*)$/i.test(tok)) return ceil;
+  const v=Math.round(K(tok)); if(!isFinite(v)) throw new Error("bad bound '"+tok+"'"); return v; }
+function buildPartials(text,ceil,f0ref){
+  f0ref=f0ref||261.63;
+  const parts=[], meta={sums:[],envs:[],literals:0}; const lines=text.split(/\n/);
+  for(let li=0;li<lines.length;li++){
+    let s=lines[li].split("#")[0].trim(); if(!s)continue;
+    if(/^sum\b/i.test(s)){
+      let body=s.replace(/^sum\b/i,"").trim(); let whereE=null;
+      const wm=body.split(/\bwhere\b/i); if(wm.length>1){ body=wm[0].trim(); whereE=wm.slice(1).join("where").trim(); }
+      const ci=body.indexOf(":"); if(ci<0) throw new Error("line "+(li+1)+": sum needs ':' then ratio(n)");
+      const decl=body.slice(0,ci), rest=body.slice(ci+1).split(":").map(x=>x.trim());
+      const idx=[...decl.matchAll(/([A-Za-z_]\w*)\s*=\s*([^.\s]+)\s*\.\.\s*([^.\s]+)/g)];
+      if(!idx.length) throw new Error("line "+(li+1)+": bad index (use n=1..N)");
+      const vars=idx.map(m=>m[1]);
+      const ranges=idx.map(m=>[parseBound(m[2],ceil),parseBound(m[3],ceil)]);
+      const rE=rest[0], aE=rest[1]||"1", pE=rest[2]||"0";
+      const EV=[...vars,"r","hz","f0"]; // r=this partial's ratio, hz=r·f0, f0=X reference pitch
+      const fr=compileExpr(rE,vars), fa=compileExpr(aE,EV), fp=compileExpr(pE,EV);
+      const fw=whereE?compileExpr(whereE,EV):null;
+      meta.sums.push({vars,ranges,r:rE,a:aE,p:pE,where:whereE,decl:decl.trim()});
+      let acc=[[]];
+      for(const [lo,hi] of ranges){ const nx=[];
+        for(const pre of acc) for(let v=lo;v<=hi;v++){ nx.push(pre.concat(v)); if(nx.length>MAXPARTS*4) throw new Error("line "+(li+1)+": sum too large"); }
+        acc=nx; }
+      for(const c of acc){ const r=fr(...c); const hz=r*f0ref;
+        if(fw && !fw(...c,r,hz,f0ref)) continue;
+        const a=fa(...c,r,hz,f0ref), p=fp(...c,r,hz,f0ref);
+        if(!isFinite(r)||!isFinite(a)||!isFinite(p)||a===0) continue;
+        parts.push({ratio:r,amp:a,phase:p*Math.PI/180});
+        if(parts.length>MAXPARTS) throw new Error("line "+(li+1)+": >"+MAXPARTS+" partials — lower ceiling"); }
+    } else if(/^env\b/i.test(s)){
+      let e=s.replace(/^env\b/i,"").trim(); if(e[0]===":") e=e.slice(1).trim();
+      const fe=compileExpr(e,["r","hz","f0"]); meta.envs.push(e);
+      for(const pt of parts){ const hz=pt.ratio*f0ref; const m=fe(pt.ratio,hz,f0ref); if(isFinite(m)) pt.amp*=m; }
+    } else {
+      const p=s.split(":").map(x=>x.trim()); let r,a,ph;
+      try{ r=K(p[0]); }catch(err){ throw new Error("line "+(li+1)+": "+err.message); }
+      a=p.length>1?K(p[1]):1; ph=p.length>2?K(p[2]):0;
+      if(!isFinite(r)) throw new Error("line "+(li+1)+": bad ratio");
+      if(a!==0){ parts.push({ratio:r,amp:a,phase:(ph||0)*Math.PI/180}); meta.literals++; }
+    }
+  }
+  if(!parts.length) throw new Error("no partials");
+  parts.sort((u,v)=>u.ratio-v.ratio);
+  return {parts,meta};
+}
+
+/* ---------- presets ---------- */
+const PRESETS={
+  "sine":"1",
+  "saw ∞":"# every harmonic, 1/n\nsum n=1..inf : n : 1/n",
+  "square ∞":"# odd harmonics\nsum n=1..inf : 2*n-1 : 1/(2*n-1)",
+  "triangle ∞":"sum n=1..inf : 2*n-1 : cos(pi*(n-1))/(2*n-1)^2",
+  "undertone":"# subharmonic series, ratio<1\nsum n=1..16 : 1/n : 1/n",
+  "primes":"# inharmonic — bell / metallic\nsum n=1..20 : prime(n) : 1/prime(n)",
+  "lowpassed saw":"sum n=1..64 : n : 1/n\nenv : exp(-r/12)",
+  "√n stretch":"# piano-like inharmonicity\nsum n=1..24 : n*sqrt(1+0.004*n*n) : 1/n",
+  "golden φ":"sum n=1..12 : phi^n : 1/n",
+  "lattice n·k":"# product sum, 6×3 grid\nsum n=1..6 k=1..3 : n*k : 1/(n*k)",
+  "odd·where":"# predicate filter\nsum n=1..48 : n : 1/n where odd(n)",
+  "split @800Hz":"# below X-relative 800Hz: full; above: odd only\nsum n=1..48 : n : iff(hz<800, 1/n, iff(odd(n),1/n,0))",
+  "keyfollow LP":"# lowpass that tracks the X pitch, in Hz\nsum n=1..64 : n : 1/n\nenv : iff(hz<2500, 1, 2500/hz)",
+  "formant @1.2k":"# fixed-Hz resonance peak (vowel-ish)\nsum n=1..48 : n : 1/n\nenv : 1/(1+((hz-1200)/400)^2)",
+  "fifth stack":"1:1\n1.5:0.6\n2.25:0.4\n3.375:0.25\n5.0625:0.16",
+  "inharm 2.3":"1:1\n2.3:0.6\n3.6:0.4\n5.1:0.25\n7.0:0.15",
+  "organ":"1:1\n2:.5\n3:.35\n4:.25\n6:.2\n8:.15"
+};
+
+/* ================= AUDIO ================= */
+const WORKLET_SRC=`
+class Additive extends AudioWorkletProcessor{
+  constructor(o){super();const p=o.processorOptions;
+    this.f0=p.f0;this.P=p.parts;this.dc=p.driftCents||0;this.dr=p.driftRate||0;
+    this.ph=this.P.map(x=>x.phase||0);this.rnd=this.P.map(()=>Math.random()*2-1);
+    this.lfo=this.P.map(()=>Math.random()*6.28318);
+    this.norm=this.P.reduce((s,x)=>s+Math.abs(x.amp),0)||1;this.dead=false;
+    this.port.onmessage=e=>{if(e.data==='stop')this.dead=true;};}
+  process(_,outs){ if(this.dead)return false; const out=outs[0][0]; if(!out)return true;
+    const sr=sampleRate,N=out.length,P=this.P,TAU=6.28318530718;
+    for(let i=0;i<N;i++){ const t=currentTime+i/sr; let s=0;
+      for(let k=0;k<P.length;k++){ let c=this.rnd[k]*this.dc;
+        if(this.dr>0) c+=Math.sin(TAU*this.dr*t+this.lfo[k])*this.dc;
+        const f=this.f0*P[k].ratio*Math.pow(2,c/1200);
+        this.ph[k]+=TAU*f/sr; s+=P[k].amp*Math.sin(this.ph[k]); }
+      out[i]=s/this.norm; }
+    return true; }
+}
+registerProcessor('additive',Additive);`;
+
+let AC=null,master=null,comp=null,analyser=null,workletReady=false;
+const voices=new Map();
+async function initAudio(){
+  if(AC){ if(AC.state==="suspended")AC.resume(); return; }
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  comp=AC.createDynamicsCompressor();
+  master=AC.createGain(); master.gain.value=+el("master").value;
+  analyser=AC.createAnalyser(); analyser.fftSize=2048;
+  master.connect(comp); comp.connect(analyser); analyser.connect(AC.destination);
+  try{ const url=URL.createObjectURL(new Blob([WORKLET_SRC],{type:"application/javascript"}));
+    await AC.audioWorklet.addModule(url); workletReady=true; }
+  catch(e){ workletReady=false; console.warn("worklet unavailable, osc fallback",e); }
+  const b=el("startBtn"); b.classList.add("on"); b.textContent="● audio on"; readout();
+  scopeLoop();
+}
+const el=id=>document.getElementById(id);
+function midiToFreq(m){ const a4=+el("a4").value||440, oct=+el("oct").value||0;
+  return a4*Math.pow(2,(m-69+12*oct)/12); }
+function noteOn(m,vel=1){
+  if(!AC||!PARTIALS.length) return;
+  if(voices.has(m)) noteOff(m,true);
+  const cap=+el("maxVoices").value||10;
+  if(voices.size>=cap) noteOff(voices.keys().next().value,true);
+  const f0=midiToFreq(m), now=AC.currentTime;
+  const env=AC.createGain(); env.gain.value=0; env.connect(master);
+  const dc=+el("driftC").value, dr=+el("driftR").value; const v={env};
+  if(workletReady){
+    const node=new AudioWorkletNode(AC,"additive",{numberOfInputs:0,numberOfOutputs:1,
+      outputChannelCount:[1],processorOptions:{f0,parts:PARTIALS.map(p=>({ratio:p.ratio,amp:p.amp,phase:p.phase})),driftCents:dc,driftRate:dr}});
+    node.connect(env); v.node=node;
+  } else {
+    const norm=PARTIALS.reduce((s,p)=>s+Math.abs(p.amp),0)||1; v.oscs=[];
+    for(const p of PARTIALS){ const f=f0*p.ratio; if(f<=0||f>AC.sampleRate/2)continue;
+      const o=AC.createOscillator(); o.type="sine"; o.frequency.value=f;
+      const g=AC.createGain(); g.gain.value=p.amp/norm; o.connect(g); g.connect(env); o.start(now); v.oscs.push(o); }
+  }
+  const A=+el("atk").value,D=+el("dec").value,S=+el("sus").value*(0.3+0.7*vel),peak=0.9*(0.3+0.7*vel);
+  env.gain.cancelScheduledValues(now); env.gain.setValueAtTime(0,now);
+  env.gain.linearRampToValueAtTime(peak,now+A); env.gain.linearRampToValueAtTime(S,now+A+D);
+  voices.set(m,v); paintKey(m,true);
+}
+function noteOff(m,fast){
+  const v=voices.get(m); if(!v)return; voices.delete(m);
+  const now=AC.currentTime, R=fast?0.02:+el("rel").value;
+  v.env.gain.cancelScheduledValues(now); v.env.gain.setValueAtTime(v.env.gain.value,now);
+  v.env.gain.linearRampToValueAtTime(0,now+R);
+  if(v.node) setTimeout(()=>{ try{v.node.port.postMessage("stop");v.node.disconnect();v.env.disconnect();}catch(e){} },(R+0.06)*1000);
+  if(v.oscs){ v.oscs.forEach(o=>{try{o.stop(now+R+0.03);}catch(e){}}); setTimeout(()=>{try{v.env.disconnect();}catch(e){}},(R+0.08)*1000); }
+  paintKey(m,false);
+}
+
+/* ================= STATE / APPLY ================= */
+let PARTIALS=[], META={sums:[],envs:[],literals:0}, edited=false;
+const getXref=()=>+el("xref").value||261.63;
+function applyGrammar(){
+  try{ const ceil=Math.max(1,Math.min(256,+el("ceil").value||32));
+    const {parts,meta}=buildPartials(el("grammar").value,ceil,getXref());
+    PARTIALS=parts; META=meta; edited=false;
+    el("err").textContent="✓ "+PARTIALS.length+" partial"+(PARTIALS.length!==1?"s":"");
+    el("err").className="err ok"; drawSpec(); drawWaveStatic(); readout();
+    if(el("modal").classList.contains("open")) renderModal();
+  }catch(e){ el("err").textContent="✕ "+e.message; el("err").className="err"; }
+}
+function readout(){
+  if(!PARTIALS.length){ el("readout").innerHTML=""; return; }
+  const rs=PARTIALS.map(p=>p.ratio); const sub=rs.filter(r=>r<1).length;
+  const inh=PARTIALS.some(p=>Math.abs(p.ratio-Math.round(p.ratio))>1e-6);
+  el("readout").innerHTML=
+    `<span>N=<b>${PARTIALS.length}</b></span>`+
+    `<span>ceil <b>${el("ceil").value}</b></span>`+
+    `<span>X <b>${(+getXref().toFixed(2))}</b>Hz</span>`+
+    `<span>r <b>${(+Math.min(...rs).toFixed(3))}</b>..<b>${(+Math.max(...rs).toFixed(3))}</b></span>`+
+    `<span>${sub?"<b>"+sub+"</b> sub · ":""}${inh?"inharmonic":"harmonic"}</span>`+
+    (edited?`<span class="warn">◆ edited</span>`:``)+
+    `<span>${AC?(workletReady?"phase-exact":"osc"):"idle"}</span>`;
+}
+
+/* ================= VIZ ================= */
+function fit(c){ const r=c.getBoundingClientRect(),d=Math.max(1,devicePixelRatio||1);
+  c.width=Math.round(r.width*d); c.height=Math.round(r.height*d);
+  const x=c.getContext("2d"); x.setTransform(d,0,0,d,0,0); return {x,W:r.width,H:r.height}; }
+const cv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function pcolor(p){ return p.ratio<1?cv("--amber"):(Math.abs(p.ratio-Math.round(p.ratio))>1e-6?cv("--violet"):cv("--cyan")); }
+let SM=null; // spectrum map for hit-testing
+function drawSpec(){
+  const c=el("spec"); const {x,W,H}=fit(c); x.clearRect(0,0,W,H);
+  if(!PARTIALS.length){ SM=null; return; }
+  const PAD=20, y0=H-24, top=30;
+  const l2=PARTIALS.map(p=>Math.log2(p.ratio));
+  let lo=Math.min(...l2), hi=Math.max(...l2); if(hi-lo<0.001){lo-=1;hi+=1;}
+  const pad=(hi-lo)*0.08+0.001; lo-=pad; hi+=pad;
+  const AMAX=Math.max(1e-3,...PARTIALS.map(p=>Math.abs(p.amp)));
+  const X=v=>PAD+((v-lo)/(hi-lo))*(W-2*PAD);
+  SM={lo,hi,PAD,W,y0,top,AMAX,X};
+  // octave gridlines (faint, worn as costume — not a hard lattice)
+  x.font="12px "+cv("--lcdf"); x.textAlign="center";
+  for(let o=Math.ceil(lo);o<=Math.floor(hi);o++){ const px=X(o);
+    x.strokeStyle=cv("--edge"); x.globalAlpha=.5; x.lineWidth=1; x.beginPath();x.moveTo(px,top);x.lineTo(px,y0);x.stroke();
+    x.globalAlpha=.7; x.fillStyle=cv("--faint"); x.fillText(o>=0?"×"+(2**o):"×"+(1/2**-o),px,y0+14); }
+  x.globalAlpha=1; x.strokeStyle=cv("--edge2"); x.beginPath();x.moveTo(PAD,y0+.5);x.lineTo(W-PAD,y0+.5);x.stroke();
+  // partials, with bloom
+  for(const p of PARTIALS){ const px=X(Math.log2(p.ratio)); const h=(Math.abs(p.amp)/AMAX)*(y0-top); const c2=pcolor(p);
+    x.shadowColor=c2; x.shadowBlur=12; x.strokeStyle=c2; x.lineWidth=2.3;
+    x.beginPath();x.moveTo(px,y0);x.lineTo(px,y0-h);x.stroke();
+    x.fillStyle=c2; x.beginPath();x.arc(px,y0-h,3,0,7);x.fill(); x.shadowBlur=0; }
+}
+function drawWaveStatic(){ const c=el("wave"); const {x,W,H}=fit(c); paintWave(x,W,H); }
+function paintWave(x,W,H){ x.clearRect(0,0,W,H);
+  x.strokeStyle=cv("--edge"); x.globalAlpha=.6;x.beginPath();x.moveTo(0,H/2);x.lineTo(W,H/2);x.stroke();x.globalAlpha=1;
+  if(!PARTIALS.length)return; const norm=PARTIALS.reduce((s,p)=>s+Math.abs(p.amp),0)||1,per=3;
+  x.shadowColor=cv("--cyan");x.shadowBlur=8; x.strokeStyle=cv("--cyan");x.lineWidth=1.8;x.beginPath();
+  for(let i=0;i<W;i++){ const t=(i/W)*per; let y=0;
+    for(const p of PARTIALS) y+=(p.amp/norm)*Math.sin(2*Math.PI*p.ratio*t+p.phase);
+    const py=H/2-y*(H/2*0.9); i?x.lineTo(i,py):x.moveTo(i,py);} x.stroke(); x.shadowBlur=0;
+}
+function scopeLoop(){ const c=el("wave"); const buf=new Uint8Array(analyser.fftSize);
+  function tick(){ const {x,W,H}=fit(c); paintWave(x,W,H);
+    analyser.getByteTimeDomainData(buf); let live=false;
+    for(let i=0;i<buf.length;i+=97){ if(Math.abs(buf[i]-128)>2){live=true;break;} }
+    if(live){ x.shadowColor=cv("--magenta");x.shadowBlur=7; x.strokeStyle=cv("--magenta");x.lineWidth=1.3;x.globalAlpha=.9;x.beginPath();
+      for(let i=0;i<W;i++){ const v=buf[(i/W*buf.length)|0]/128-1; const py=H/2-v*(H/2*0.9); i?x.lineTo(i,py):x.moveTo(i,py);} x.stroke();x.globalAlpha=1;x.shadowBlur=0; }
+    requestAnimationFrame(tick); }
+  tick();
+}
+
+/* ---- draggable partials ---- */
+let dragI=-1;
+function specPos(e){ const r=el("spec").getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+el("spec").addEventListener("pointerdown",e=>{
+  if(!SM||!PARTIALS.length)return; const {x,y}=specPos(e); let best=-1,bd=1e9;
+  for(let i=0;i<PARTIALS.length;i++){ const px=SM.X(Math.log2(PARTIALS[i].ratio)); const d=Math.abs(px-x); if(d<bd){bd=d;best=i;} }
+  if(bd<16){ dragI=best; el("spec").setPointerCapture(e.pointerId); setAmpFromY(y); }
+});
+el("spec").addEventListener("pointermove",e=>{ if(dragI<0)return; setAmpFromY(specPos(e).y); });
+el("spec").addEventListener("pointerup",()=>{ dragI=-1; });
+el("spec").addEventListener("pointerleave",()=>{ dragI=-1; });
+function setAmpFromY(y){ if(!SM)return; const t=(SM.y0-y)/(SM.y0-SM.top);
+  const a=Math.max(0,Math.min(1.05,t))*SM.AMAX; const sgn=PARTIALS[dragI].amp<0?-1:1;
+  PARTIALS[dragI].amp=a*sgn; edited=true; drawSpec(); if(!AC)drawWaveStatic(); readout(); }
+
+/* ================= NAKED MATH (modal) ================= */
+function tex(expr){ let s=(expr||"").trim(); if(!s)return "";
+  s=s.replace(/\bsqrt\s*\(([^()]*)\)/g,"\\sqrt{$1}");
+  s=s.replace(/\bexp\s*\(([^()]*)\)/g,"e^{$1}");
+  s=s.replace(/\babs\s*\(([^()]*)\)/g,"\\left|$1\\right|");
+  s=s.replace(/\bprime\s*\(([^()]*)\)/g,"p_{$1}").replace(/\bfib\s*\(([^()]*)\)/g,"F_{$1}");
+  s=s.replace(/\bhz\b/g,"\\nu ").replace(/\bf0\b/g,"f_0 ");
+  s=s.replace(/\b(iff|odd|even|step|between|clamp|mod)\b/g,"\\mathrm{$1}");
+  s=s.replace(/\bsin\b/g,"\\sin ").replace(/\bcos\b/g,"\\cos ").replace(/\btan\b/g,"\\tan ").replace(/\blog\b/g,"\\ln ");
+  s=s.replace(/\bpi\b/g,"\\pi ").replace(/\bphi\b/g,"\\varphi ").replace(/\btau\b/g,"\\tau ").replace(/\binf(inity)?\b/g,"\\infty ");
+  s=s.replace(/\^\s*([A-Za-z0-9_.]+)/g,"^{$1}");
+  for(let k=0;k<3;k++) s=s.replace(/([A-Za-z0-9_.\\{}]+|\([^()]*\))\s*\/\s*([A-Za-z0-9_.\\{}]+|\([^()]*\))/g,"\\frac{$1}{$2}");
+  s=s.replace(/\*/g,"\\,");
+  return s; }
+function KR(latex,elm,disp){ try{ if(window.katex){ katex.render(latex,elm,{displayMode:!!disp,throwOnError:false}); } else elm.textContent=latex; }catch(e){ elm.textContent=latex; } }
+function renderModal(){
+  KR("y(t)=\\sum_{n} a(n)\\,\\sin\\!\\big(2\\pi\\, r(n)\\, f_0\\, t + p(n)\\big)", el("eqGeneral"), true);
+  // live
+  let live="";
+  if(META.sums.length){
+    live=META.sums.map(sm=>{
+      const v=sm.vars[0]; const [lo,hi]=sm.ranges[0];
+      const idx = sm.vars.length>1 ? sm.vars.join(",") : v;
+      const bound = sm.vars.length>1 ? "" : `_{${v}=${lo}}^{${hi===+el("ceil").value?"\\,N":hi}}`;
+      const aT=tex(sm.a), pShow=sm.p&&sm.p.trim()!=="0";
+      const inner=`${aT?aT+"\\,":""}\\sin\\!\\big(2\\pi\\,${tex(sm.r)}\\,f_0 t${pShow?"+"+tex(sm.p):""}\\big)`;
+      return `\\sum${bound} ${inner}`;
+    }).join(" \\;+\\; ");
+    if(META.literals) live+=" \\;+\\; (\\text{literals})";
+  } else live="\\text{(explicit partials — see table)}";
+  KR("y(t)="+live, el("eqLive"), true);
+  // defs
+  let defs="";
+  META.sums.forEach((sm,i)=>{ defs+=`<div>sum ${i+1}: <b>${sm.decl}</b> · r=<b>${sm.r}</b> · a=<b>${sm.a}</b> · p=<b>${sm.p}</b>°${sm.where?` · <span style="color:var(--amber)">where</span> <b>${sm.where}</b>`:""}</div>`; });
+  if(META.envs.length) defs+=`<div>env: â(r)=<b>${META.envs.join(" · ")}</b></div>`;
+  el("eqDefs").innerHTML=defs||"<div>explicit partial list</div>";
+  // env defs + plot
+  el("envDefs").innerHTML = META.envs.length ? `â(r) = ${META.envs.map(e=>"<b>"+e+"</b>").join(" × ")}` : "no <b>env</b> line — â(r)=1 (flat).";
+  drawEnvPlot();
+  // table
+  const rows=PARTIALS.map((p,i)=>{ const cls=p.ratio<1?"sub":(Math.abs(p.ratio-Math.round(p.ratio))>1e-6?"inh":"");
+    return `<tr><td>${i+1}</td><td class="${cls}">${(+p.ratio.toFixed(5))}</td><td>${(+p.amp.toFixed(5))}</td><td>${(+(p.phase*180/Math.PI).toFixed(1))}</td></tr>`; }).join("");
+  el("partTable").innerHTML=`<thead><tr><th>n</th><th>ratio r</th><th>amp a</th><th>phase°</th></tr></thead><tbody>${rows}</tbody>`;
+}
+function drawEnvPlot(){
+  const c=el("envPlot"); const {x,W,H}=fit(c); x.clearRect(0,0,W,H);
+  const xr=getXref();
+  const fns=META.envs.map(e=>{ try{return compileExpr(e,["r","hz","f0"]);}catch(_){return ()=>1;} });
+  const F=r=>fns.reduce((a,f)=>{const v=f(r,r*xr,xr);return a*(isFinite(v)?v:0);},1);
+  const rs=PARTIALS.map(p=>p.ratio); let rlo=Math.min(0.5,...rs), rhi=Math.max(2,...rs);
+  const PAD=26,y0=H-18,top=14; const X=r=>PAD+((r-rlo)/(rhi-rlo))*(W-2*PAD);
+  let vmax=1e-6; for(let i=0;i<=120;i++){ const r=rlo+(rhi-rlo)*i/120; vmax=Math.max(vmax,Math.abs(F(r))); }
+  const Y=v=>y0-(v/vmax)*(y0-top);
+  x.strokeStyle=cv("--edge"); x.globalAlpha=.5;x.beginPath();x.moveTo(PAD,y0+.5);x.lineTo(W-PAD,y0+.5);x.stroke();x.globalAlpha=1;
+  x.shadowColor=cv("--lime");x.shadowBlur=8; x.strokeStyle=cv("--lime");x.lineWidth=2;x.beginPath();
+  for(let i=0;i<=200;i++){ const r=rlo+(rhi-rlo)*i/200; const px=X(r),py=Y(F(r)); i?x.lineTo(px,py):x.moveTo(px,py);} x.stroke();x.shadowBlur=0;
+  for(const p of PARTIALS){ if(p.ratio<rlo||p.ratio>rhi)continue; const px=X(p.ratio),py=Y(F(p.ratio));
+    x.fillStyle=pcolor(p); x.beginPath();x.arc(px,py,3,0,7);x.fill(); }
+  x.fillStyle=cv("--faint");x.font="12px "+cv("--lcdf");x.textAlign="center";
+  x.fillText("r="+(+rlo.toFixed(2)),PAD,y0+13); x.fillText("r="+(+rhi.toFixed(2)),W-PAD,y0+13);
+}
+function openModal(){ el("modal").classList.add("open"); renderModal(); }
+function closeModal(){ el("modal").classList.remove("open"); }
+
+/* ================= KEYBOARD ================= */
+const LOW=48,HIGH=84, ISB=n=>[1,3,6,8,10].includes(n%12); const keyEls=new Map();
+function buildKeyboard(){ const kb=el("keyboard"); kb.innerHTML=""; keyEls.clear();
+  const whites=[]; for(let m=LOW;m<=HIGH;m++) if(!ISB(m)) whites.push(m);
+  const ww=100/whites.length; let wi=0;
+  for(let m=LOW;m<=HIGH;m++){ if(ISB(m))continue;
+    const d=document.createElement("div"); d.className="wk"; d.style.left=(wi*ww)+"%"; d.style.width=ww+"%";
+    if(m%12===0){ const l=document.createElement("div"); l.className="klabel"; l.textContent="C"+((m/12|0)-1); d.appendChild(l); }
+    bindKey(d,m); kb.appendChild(d); keyEls.set(m,d); wi++; }
+  wi=0;
+  for(let m=LOW;m<=HIGH;m++){ if(!ISB(m)){wi++;continue;}
+    const d=document.createElement("div"); d.className="bk"; d.style.left=(wi*ww-ww*0.3)+"%"; d.style.width=(ww*0.6)+"%";
+    bindKey(d,m); kb.appendChild(d); keyEls.set(m,d); } }
+function bindKey(d,m){ d.addEventListener("pointerdown",e=>{e.preventDefault();initAudio().then(()=>noteOn(m,0.9));d.setPointerCapture(e.pointerId);});
+  d.addEventListener("pointerup",()=>noteOff(m)); d.addEventListener("pointerleave",e=>{if(e.buttons)noteOff(m);}); }
+function paintKey(m,on){ const d=keyEls.get(m); if(d)d.classList.toggle("active",on); }
+let kbOct=0; const KMAP={a:0,w:1,s:2,e:3,d:4,f:5,t:6,g:7,y:8,h:9,u:10,j:11,k:12,o:13,l:14,p:15}; const down=new Set();
+addEventListener("keydown",e=>{ if(e.key==="Escape")closeModal();
+  if(e.repeat||e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT")return;
+  const k=e.key.toLowerCase(); if(k==="z"){kbOct=Math.max(-3,kbOct-1);return;} if(k==="x"){kbOct=Math.min(3,kbOct+1);return;}
+  if(k in KMAP) initAudio().then(()=>{const m=60+kbOct*12+KMAP[k]; if(!down.has(m)){down.add(m);noteOn(m,0.85);}}); });
+addEventListener("keyup",e=>{ const k=e.key.toLowerCase(); if(k in KMAP){ const m=60+kbOct*12+KMAP[k]; down.delete(m); noteOff(m);} });
+
+/* ================= MIDI ================= */
+function initMIDI(){ if(!navigator.requestMIDIAccess){ el("midiStat").textContent="MIDI unsupported"; return; }
+  navigator.requestMIDIAccess().then(acc=>{ const hook=()=>{ const names=[]; acc.inputs.forEach(i=>{names.push(i.name); i.onmidimessage=onMIDI;});
+      el("midiStat").textContent=names.length?"MIDI ▸ "+names.join(", "):"MIDI no device"; };
+    hook(); acc.onstatechange=hook; }).catch(()=>el("midiStat").textContent="MIDI denied"); }
+function onMIDI(ev){ const [st,d1,d2]=ev.data, cmd=st&0xf0;
+  if(cmd===0x90&&d2>0) initAudio().then(()=>noteOn(d1,d2/127));
+  else if(cmd===0x80||(cmd===0x90&&d2===0)) noteOff(d1); }
+
+/* ================= WIRE ================= */
+function slider(id,out,fmt,cb){ const s=el(id),o=el(out); const u=()=>{o.textContent=fmt(+s.value);cb&&cb(+s.value);}; s.addEventListener("input",u); u(); }
+function init(){
+  const box=el("presets");
+  Object.keys(PRESETS).forEach(n=>{ const b=document.createElement("button"); b.className="chip"; b.textContent=n;
+    b.onclick=()=>{ el("grammar").value=PRESETS[n]; applyGrammar(); }; box.appendChild(b); });
+  el("grammar").value=PRESETS["saw ∞"]; applyGrammar();
+  el("startBtn").onclick=()=>initAudio();
+  el("applyBtn").onclick=applyGrammar; el("ceil").addEventListener("change",applyGrammar);
+  el("xref").addEventListener("change",applyGrammar);
+  el("mathBtn").onclick=openModal; el("modalClose").onclick=closeModal;
+  el("modal").addEventListener("click",e=>{ if(e.target===el("modal"))closeModal(); });
+  document.querySelectorAll(".tabs .t").forEach(t=>t.onclick=()=>{
+    document.querySelectorAll(".tabs .t").forEach(z=>z.classList.remove("on")); t.classList.add("on");
+    document.querySelectorAll(".pane").forEach(z=>z.classList.remove("on")); el("pane-"+t.dataset.p).classList.add("on");
+    if(t.dataset.p==="env") drawEnvPlot(); });
+  el("bakeBtn").onclick=()=>{ if(!PARTIALS.length)return;
+    el("grammar").value="# baked from spectrum\n"+PARTIALS.map(p=>(+p.ratio.toFixed(5))+" : "+(+p.amp.toFixed(5))+(p.phase?" : "+(+(p.phase*180/Math.PI).toFixed(1)):"")).join("\n");
+    applyGrammar(); };
+  el("normBtn").onclick=()=>{ try{ const {parts}=buildPartials(el("grammar").value,+el("ceil").value||32,getXref());
+    const mx=Math.max(...parts.map(p=>Math.abs(p.amp)))||1;
+    el("grammar").value=parts.map(p=>(+p.ratio.toFixed(5))+" : "+(+(p.amp/mx).toFixed(4))+(p.phase?" : "+(+(p.phase*180/Math.PI).toFixed(1)):"")).join("\n");
+    applyGrammar(); }catch(e){ el("err").textContent="✕ "+e.message; el("err").className="err"; } };
+  el("grammar").addEventListener("keydown",e=>{ if(e.ctrlKey&&e.key==="Enter"){e.preventDefault();applyGrammar();} });
+  slider("master","masterV",v=>v.toFixed(2),v=>{if(master)master.gain.value=v;});
+  slider("atk","atkV",v=>v.toFixed(2)); slider("dec","decV",v=>v.toFixed(2));
+  slider("sus","susV",v=>v.toFixed(2)); slider("rel","relV",v=>v.toFixed(2));
+  slider("driftC","driftCV",v=>v.toFixed(1)); slider("driftR","driftRV",v=>v.toFixed(2));
+  buildKeyboard(); initMIDI();
+  addEventListener("resize",()=>{ drawSpec(); drawWaveStatic(); if(el("modal").classList.contains("open"))drawEnvPlot(); });
+}
+init();
+</script>
+</body>
+</html>
