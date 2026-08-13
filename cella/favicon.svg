@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cella favicon">
+  <title>Cella favicon</title>
+  <defs>
+    <radialGradient id="stone" cx="28%" cy="20%" r="78%">
+      <stop offset="0" stop-color="#ddd4bb"/>
+      <stop offset="0.55" stop-color="#c7bda3"/>
+      <stop offset="1" stop-color="#8f8467"/>
+    </radialGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1530"/>
+      <stop offset="1" stop-color="#0d0916"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5c86e"/>
+      <stop offset="0.48" stop-color="#b8893c"/>
+      <stop offset="1" stop-color="#6f5220"/>
+    </linearGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- stone tile / chamber wall -->
+  <rect x="3" y="3" width="58" height="58" rx="13" fill="url(#stone)" stroke="#0e0a16" stroke-width="3"/>
+  <path d="M12 51h40" stroke="#ece3c9" stroke-width="2" opacity="0.45"/>
+  <path d="M10 16c9-5 20-5 34-1" stroke="#f4d79a" stroke-width="1.4" opacity="0.35" fill="none"/>
+
+  <!-- dark resonant cella / plate -->
+  <rect x="12" y="13" width="40" height="38" rx="10" fill="url(#plate)" stroke="#3a3050" stroke-width="2"/>
+  <path d="M17 47V27c0-8.4 6.6-15 15-15s15 6.6 15 15v20" fill="none" stroke="#2a2140" stroke-width="3" opacity="0.72"/>
+
+  <!-- modal spectrum lines -->
+  <g filter="url(#softGlow)" stroke-linecap="round">
+    <path d="M22 43V25" stroke="#3f9c8e" stroke-width="4" opacity="0.92"/>
+    <path d="M22 43V25" stroke="#67c3b4" stroke-width="1.4"/>
+
+    <path d="M31.5 44V18" stroke="#e0a24b" stroke-width="4.3" opacity="0.95"/>
+    <path d="M31.5 44V18" stroke="#f5c86e" stroke-width="1.4"/>
+
+    <path d="M41.5 43V30" stroke="#3f9c8e" stroke-width="3.7" opacity="0.82"/>
+    <path d="M41.5 43V30" stroke="#67c3b4" stroke-width="1.2"/>
+  </g>
+
+  <!-- struck sine / chimera hairline -->
+  <path d="M18 39c6-15 12 13 18-1s9-9 12-1" fill="none" stroke="#f4d79a" stroke-width="1.8" stroke-linecap="round" opacity="0.95"/>
+
+  <!-- brass threshold / temple sill -->
+  <path d="M17 48h30" stroke="url(#brass)" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="31.5" cy="18" r="2.6" fill="#f5c86e" stroke="#0d0916" stroke-width="1"/>
+</svg>
