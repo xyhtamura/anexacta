@@ -6,10 +6,13 @@ under that name in the portfolio (`../xyhtamura.github.io/index.html`,
 `#anexacta`), described there as "a set of equation-first synthesizers that expose
 spectral structure, tuning, modulation, and feedback as editable mathematics." The
 name covers the trio and any later member. Per-tool detail lives in each project's
-own `.md` (`aliquoto/aliquoto.md`, `cella/cella.md`, `moire/moire.md`).*
+own `.md` (`aliquoto/aliquoto.md`, `cella/cella.md`, `moire/moire.md`,
+`physa/physa.md`).*
 
 Shipped (2026-07): **Aliquoto**, **Cella**, **Moire** — each a single self-contained
 `index.html` in its own subdirectory of the shared repository.
+Shipped (2026-08): **Physa**, the memristive element as its own member, and the
+first entity in the suite that carries state between evaluations.
 
 ---
 
@@ -221,8 +224,12 @@ What it does that nothing currently in the grammar does:
   performance. One knob spanning "waveshaper" to "the instrument remembers the
   set."
 
-Taxonomy word, if it ever becomes its own member: **worn** — the spectrum is the
-wear pattern.
+Taxonomy word, when this was still an idea: *worn* — the spectrum is the wear
+pattern. **It became its own member on 2026-08-25, named [Physa](physa/physa.md)**,
+after the Greek for bellows and the root of *Physarum*. The open question at the
+foot of this file is therefore closed in favour of *its own member*; the
+per-sibling placements below remain unbuilt and are still worth doing, because a
+member and a shared primitive are not exclusive.
 
 Per-sibling placement (retrofittable into the trio, does not wait on member 5):
 
@@ -544,3 +551,38 @@ Undone: nothing built. Arc 1.1 is still the next actual work, and the memristive
 element should ride in as that seam's first stateful entry rather than as a
 separate arc. Open question left for the next session: whether the memristor
 becomes its own member (**worn**) or stays a shared primitive across the trio.
+
+**2026-08-25 — Claude Code.** That open question is now answered: the memristive
+element shipped as its own member, **Physa** (`physa/`, notes in
+`physa/physa.md`), reskinned into the collection and listed on the landing page.
+It implements the model directly rather than vendoring anything, so no
+`DEPENDENCIES.md` contract applies.
+
+Three things in it go past the 2026-08-03 ideation and are worth reading back into
+this file before arc 1.1 is designed:
+
+- **A memoryless branch is as important as the stateful one.** Physa carries a
+  parallel capacitance, because that is what *Physarum* turned out to have instead
+  of memristance (Schmidt et al. 2025). Measured on the shipping worklet: a plain
+  resistor with 1.4 µF across it reads **57.4% memory, 0.01% harmonic content, and
+  75.8% at the voltage zero-crossings** — an elliptical loop that misses the
+  origin. So "memory" in the hysterion sense counts quadrature at the fundamental
+  and a linear reactance scores high on it. **Harmonic content above the
+  fundamental is the measure that separates a memristor from an RC network**, and
+  any future stateful entity in the grammar should be reported with all three.
+- **The curve can itself be a state variable.** Physa's senescence blends M(q)
+  toward its own mean where the charge dwells, so playing abrades the authored
+  definition. That is a fourth timescale beyond the µs/ms/0.1–2 s/minutes sweep
+  described above, and it is *irreversible within a session* rather than another
+  relaxation. If the registry is going to hold stateful entries, it has to decide
+  whether an entry may modify its own definition, which this one does.
+- **Tero's tube law fits the grammar** as a second state per element: conductance
+  rising with the current carried and relaxing otherwise, saturating so the
+  positive feedback is bounded. Verified stable at eight elements under full
+  reinforcement at amplitude 2.
+
+Still undone, and the reason the per-sibling placements above are not crossed off:
+**one element per partial** — Physa runs several elements across one drive, not one
+per partial, so the spectrum does not yet dull unevenly. That is the piece that
+makes the element genuinely additive rather than a monosynth with a network in it,
+and it is Physa's Next in Dev.

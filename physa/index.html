@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Physa</title>
+<meta name="description" content="Physa is an equation-first browser instrument whose sounding element is a charge-controlled memristor. The memristance curve M(q) is written as an equation, wears with playing, and can be run beside the capacitance that Physarum polycephalum turned out to have instead of memristance.">
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Averia+Gruesa+Libre&family=Averia+Sans+Libre:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<style>
+:root{
+  /* a bronze plate left somewhere damp, with a culture on it.
+     oxide interference runs amber -> verdigris -> violet on its own, which is
+     the fallback hue triad (45 / 165 / 285) without having to impose it.
+     the chrome yellow is Physarum's own colour and is reserved for the
+     memoryless branch: the mould dial, and the wear it leaves behind. */
+  --plate:hsl(285 24% 9%); --plate2:hsl(272 21% 13%); --plate-d:hsl(291 32% 5%);
+  --membrane:hsl(56 15% 83%); --membrane2:hsl(47 13% 72%); --membrane-d:hsl(42 12% 60%);
+  --ink:hsl(285 32% 12%); --dim:hsl(281 14% 32%); --faint:hsl(276 11% 45%);
+  --pale:hsl(56 22% 88%);
+
+  --bronze:hsl(38 44% 44%); --bronze-d:hsl(33 46% 21%); --bronze-hi:hsl(46 64% 68%);
+  --verd:hsl(165 49% 40%); --verd-hi:hsl(165 60% 63%); --verd-d:hsl(168 45% 19%);
+  --iris:hsl(285 54% 63%); --iris-d:hsl(285 44% 34%);
+  --slime:hsl(52 89% 57%); --slime-d:hsl(46 72% 36%);
+  --hot:hsl(27 79% 56%);
+  --bad:hsl(352 56% 54%);
+
+  --edge:hsl(285 26% 24%); --edge2:hsl(291 40% 6%);
+  --disp:"Averia Gruesa Libre","Averia Libre",Georgia,serif;
+  --ui:"Averia Sans Libre",system-ui,sans-serif;
+  --mono:"Space Mono",ui-monospace,Consolas,monospace;
+
+  --age:0;   /* 0..1, driven from JS: how far the substrate has worn */
+}
+*{box-sizing:border-box}
+html{min-height:100%}
+body{
+  margin:0; min-height:100vh;
+  color:var(--pale);
+  font:13px/1.5 var(--mono);
+  background:
+    radial-gradient(900px 620px at 12% -8%, hsl(165 60% 34% / .17), transparent 58%),
+    radial-gradient(760px 520px at 88% 4%, hsl(285 58% 46% / .19), transparent 54%),
+    radial-gradient(700px 720px at 64% 108%, hsl(45 70% 46% / .13), transparent 62%),
+    linear-gradient(163deg, var(--plate2) 0%, var(--plate) 52%, var(--plate-d) 100%);
+  background-attachment:fixed;
+}
+/* corrosion grain over the whole plate */
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  opacity:.16; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/></svg>");
+}
+/* the culture: creeps in as the substrate wears, driven by --age */
+body::after{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  opacity:calc(var(--age) * .55); mix-blend-mode:screen;
+  transition:opacity .8s linear;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='620' height='620'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 .84  0 0 0 0 .78  0 0 0 0 .18  0 0 0 -1.4 .78'/></filter><rect width='100%25' height='100%25' filter='url(%23b)'/></svg>");
+  background-size:cover;
+}
+body > *{position:relative; z-index:1}
+
+/* ---------- header ---------- */
+header{
+  display:flex; align-items:stretch; gap:clamp(12px,2.4vw,26px); flex-wrap:wrap;
+  padding:16px clamp(14px,2.6vw,26px) 18px;
+  border-bottom:1px solid var(--edge);
+  background:linear-gradient(178deg, hsl(285 22% 15% / .82), hsl(288 30% 8% / .74));
+  box-shadow:0 16px 34px -28px #000;
+}
+.nameplate{
+  display:flex; flex-direction:column; justify-content:center;
+  padding:11px 20px 13px;
+  border:1px solid hsl(38 40% 40% / .5);
+  border-radius:20px 30px 16px 26px / 24px 16px 28px 18px;
+  background:linear-gradient(165deg, hsl(38 30% 30%), hsl(33 34% 16%) 62%, hsl(285 26% 12%));
+  box-shadow:inset 0 1px 0 hsl(46 60% 70% / .38), inset 0 -10px 20px hsl(291 50% 4% / .5),
+             0 10px 22px -16px #000;
+}
+.brand{
+  font:400 30px/1 var(--disp); letter-spacing:.05em; color:var(--bronze-hi);
+  text-shadow:0 1px 0 hsl(33 40% 12%), 0 0 18px hsl(45 70% 50% / .22);
+}
+.brand span{color:var(--slime); text-shadow:0 0 14px hsl(52 90% 55% / .5)}
+.tag{margin-top:5px; font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:hsl(46 30% 66%)}
+.defn{
+  flex:1 1 30rem; min-width:0;
+  display:flex; flex-direction:column; justify-content:center; gap:5px;
+  padding:12px 18px 13px;
+  border:1px solid hsl(165 40% 34% / .34);
+  border-radius:16px 28px 20px 24px / 24px 18px 26px 16px;
+  background:linear-gradient(150deg, hsl(200 22% 9% / .9), hsl(285 26% 7% / .86));
+  box-shadow:inset 0 2px 12px hsl(291 60% 3% / .8), inset 0 0 0 1px hsl(165 40% 44% / .12);
+  overflow-x:auto;
+}
+.defn .row{display:flex; align-items:baseline; gap:10px; white-space:nowrap}
+.defn .who{
+  flex:0 0 5.2rem; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--verd-hi); opacity:.8;
+}
+.defn .tex{color:var(--pale); font-size:13px}
+.hactions{display:flex; flex-direction:column; justify-content:center; gap:8px; min-width:11rem}
+
+/* ---------- shell ---------- */
+main{
+  display:grid; grid-template-columns:clamp(290px,25vw,340px) minmax(0,1fr);
+  gap:clamp(14px,1.8vw,22px);
+  padding:clamp(14px,2.2vw,24px) clamp(14px,2.6vw,26px) 8px;
+  align-items:start;
+}
+.side{display:flex; flex-direction:column; gap:15px}
+
+/* organs: membrane compartments on the plate, none the same shape */
+.organ{
+  padding:14px 15px 15px;
+  border:1px solid hsl(42 22% 46% / .5);
+  color:var(--ink);
+  background:linear-gradient(168deg, var(--membrane), var(--membrane2) 74%, var(--membrane-d));
+  box-shadow:inset 0 1px 0 hsl(56 44% 97% / .78),
+             inset 0 -16px 28px hsl(38 30% 38% / .16),
+             0 14px 28px -18px hsl(291 60% 3% / .95);
+}
+.organ:nth-of-type(1){border-radius:26px 34px 16px 28px / 30px 18px 32px 20px}
+.organ:nth-of-type(2){border-radius:18px 26px 32px 20px / 22px 30px 18px 28px; transform:rotate(-.18deg)}
+.organ:nth-of-type(3){border-radius:32px 18px 26px 34px / 20px 28px 22px 30px; transform:rotate(.14deg)}
+.organ:nth-of-type(4){border-radius:22px 30px 20px 26px / 28px 20px 30px 22px}
+.organ:nth-of-type(5){border-radius:30px 20px 28px 18px / 18px 30px 20px 28px; transform:rotate(-.1deg)}
+
+h2{
+  margin:0 0 10px; font:700 10px/1.2 var(--ui);
+  letter-spacing:.19em; text-transform:uppercase; color:hsl(285 20% 28%);
+  display:flex; align-items:center; gap:9px;
+}
+h2::after{
+  content:""; flex:1; height:2px; border-radius:2px;
+  background:linear-gradient(90deg, hsl(165 45% 36% / .5), hsl(285 40% 40% / .16), transparent);
+}
+label{display:block; margin:0 0 11px}
+label:last-child{margin-bottom:0}
+label .row{display:flex; justify-content:space-between; gap:8px; margin-bottom:4px}
+label .row span:first-child{font:700 11px/1.3 var(--ui); letter-spacing:.05em; color:var(--ink)}
+.val{color:hsl(168 44% 24%); font-size:11px}
+
+/* fields */
+input[type=text],select,textarea{
+  width:100%; font:inherit; color:var(--ink);
+  background:linear-gradient(180deg, hsl(56 26% 91%), hsl(48 18% 81%));
+  border:1px solid hsl(42 20% 46% / .8); border-radius:9px 12px 9px 12px;
+  padding:7px 9px;
+  box-shadow:inset 0 2px 5px hsl(38 24% 40% / .22), 0 1px 0 hsl(56 40% 96% / .5);
+}
+select{
+  -webkit-appearance:none; appearance:none; cursor:pointer; padding-right:28px;
+  background:
+    linear-gradient(135deg,transparent 0 44%,var(--verd) 45% 55%,transparent 56%) right 15px top 53%/7px 7px no-repeat,
+    linear-gradient(225deg,transparent 0 44%,var(--verd) 45% 55%,transparent 56%) right 10px top 53%/7px 7px no-repeat,
+    linear-gradient(180deg, hsl(56 26% 91%), hsl(48 18% 81%));
+}
+input[type=text]:focus,select:focus{outline:none; border-color:var(--verd); box-shadow:inset 0 2px 5px hsl(38 24% 40% / .22), 0 0 0 2px hsl(165 50% 42% / .3)}
+#eq{font-size:12px; font-family:var(--mono)}
+#eqErr{color:hsl(352 62% 34%); min-height:1.25em; font-size:11px; margin:5px 0 9px}
+
+/* buttons: bronze studs */
+button{
+  font:700 11px/1 var(--ui); letter-spacing:.09em; text-transform:uppercase;
+  color:hsl(46 44% 90%); cursor:pointer;
+  background:linear-gradient(178deg, hsl(38 36% 40%), hsl(33 40% 22%) 60%, hsl(30 42% 15%));
+  border:1px solid hsl(30 44% 12%); border-radius:11px 14px 10px 13px;
+  padding:9px 12px;
+  box-shadow:inset 0 1px 0 hsl(46 62% 72% / .42), inset 0 -6px 12px hsl(291 50% 4% / .4),
+             0 3px 7px -4px #000;
+  transition:transform .1s ease, box-shadow .12s ease, border-color .12s ease;
+}
+button:hover{border-color:var(--verd); box-shadow:inset 0 1px 0 hsl(46 62% 72% / .5), 0 0 0 2px hsl(165 50% 42% / .28)}
+button:active{transform:translateY(1px); box-shadow:inset 0 3px 8px hsl(291 60% 3% / .6)}
+button:focus-visible{outline:2px solid var(--verd-hi); outline-offset:2px}
+button.wide{width:100%}
+button.lit{
+  color:hsl(50 60% 12%);
+  background:linear-gradient(178deg, hsl(52 88% 66%), hsl(46 74% 44%));
+  border-color:hsl(44 60% 22%);
+  box-shadow:inset 0 1px 0 hsl(56 90% 88% / .7), 0 0 16px hsl(52 88% 56% / .35);
+}
+
+/* sliders: a carved groove in the plate with a verdigris nodule riding it */
+input[type=range]{
+  -webkit-appearance:none; appearance:none;
+  width:100%; height:20px; margin:0; background:transparent; cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:8px; border-radius:99px;
+  background:linear-gradient(180deg, hsl(291 34% 8%), hsl(285 22% 17%));
+  border:1px solid hsl(42 20% 46% / .7);
+  box-shadow:inset 0 2px 4px hsl(291 60% 2% / .8), 0 1px 0 hsl(56 40% 96% / .45);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none;
+  width:17px; height:17px; margin-top:-5.5px; border-radius:52% 48% 55% 45% / 48% 55% 45% 52%;
+  background:radial-gradient(circle at 33% 28%, var(--verd-hi), var(--verd) 46%, var(--verd-d));
+  border:1px solid hsl(168 50% 12%);
+  box-shadow:inset 0 1px 2px hsl(165 70% 85% / .55), 0 2px 4px hsl(291 60% 3% / .6);
+}
+input[type=range]::-moz-range-track{
+  height:8px; border-radius:99px;
+  background:linear-gradient(180deg, hsl(291 34% 8%), hsl(285 22% 17%));
+  border:1px solid hsl(42 20% 46% / .7);
+}
+input[type=range]::-moz-range-thumb{
+  width:17px; height:17px; border-radius:52% 48% 55% 45% / 48% 55% 45% 52%;
+  background:radial-gradient(circle at 33% 28%, var(--verd-hi), var(--verd) 46%, var(--verd-d));
+  border:1px solid hsl(168 50% 12%);
+}
+input[type=range]:focus{outline:none}
+input[type=range]:focus::-webkit-slider-runnable-track{border-color:var(--verd)}
+input[type=range].mould::-webkit-slider-thumb{
+  background:radial-gradient(circle at 33% 28%, hsl(56 95% 78%), var(--slime) 46%, var(--slime-d));
+  border-color:hsl(44 60% 18%);
+}
+input[type=range].mould::-moz-range-thumb{
+  background:radial-gradient(circle at 33% 28%, hsl(56 95% 78%), var(--slime) 46%, var(--slime-d));
+  border-color:hsl(44 60% 18%);
+}
+
+.cap{margin:7px 0 0; color:hsl(283 12% 30%); font:400 11.5px/1.5 var(--ui)}
+.cap code{font-family:var(--mono); font-size:10.8px; color:hsl(168 50% 22%)}
+.cap b{color:var(--ink)}
+.organ .cap:not(:last-child){margin-bottom:11px}
+
+.readout{display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px dashed hsl(42 18% 48% / .5)}
+.readout:last-child{border-bottom:0}
+.readout span:first-child{font:400 11.5px/1.4 var(--ui); color:var(--dim)}
+.readout span:last-child{color:hsl(168 52% 20%); font-weight:700}
+
+/* ---------- stage ---------- */
+.stage{display:flex; flex-direction:column; gap:clamp(14px,1.8vw,20px); min-width:0}
+.footrow{display:grid; grid-template-columns:1.32fr .68fr; gap:15px; min-width:0}
+.footrow .organ:nth-of-type(1){border-radius:24px 32px 18px 28px / 28px 18px 30px 20px; transform:rotate(.12deg)}
+.footrow .organ:nth-of-type(2){border-radius:30px 18px 28px 22px / 20px 30px 20px 28px; transform:rotate(-.14deg)}
+@media(max-width:640px){.footrow{grid-template-columns:1fr}}
+.bank{display:grid; grid-template-columns:1.16fr .84fr; gap:16px 15px; min-width:0}
+.cell{
+  min-width:0; padding:11px 12px 12px;
+  border:1px solid hsl(165 34% 36% / .3);
+  background:linear-gradient(158deg, hsl(285 24% 10% / .9), hsl(200 20% 7% / .86));
+  box-shadow:inset 0 2px 12px hsl(291 60% 2% / .85), inset 0 0 0 1px hsl(165 40% 44% / .1),
+             0 16px 30px -22px #000;
+}
+.cell:nth-child(1){grid-column:1 / -1; border-radius:24px 32px 18px 28px / 28px 18px 30px 20px; transform:rotate(-.16deg)}
+.cell:nth-child(2){border-radius:30px 18px 28px 20px / 20px 30px 18px 28px; transform:rotate(.12deg)}
+.cell:nth-child(3){border-radius:18px 30px 22px 32px / 26px 20px 30px 18px}
+.cell .cap{color:hsl(46 16% 62%)}
+.cell .cap code{color:var(--verd-hi)}
+.cell .cap b{color:hsl(46 30% 82%)}
+canvas{width:100%; display:block; border-radius:12px 16px 12px 16px;
+  background:linear-gradient(168deg, hsl(287 30% 6%), hsl(198 26% 5%));
+  box-shadow:inset 0 0 0 1px hsl(165 40% 40% / .16), inset 0 3px 14px hsl(291 70% 2% / .9);}
+#curve{height:212px}
+#loop,#scope{height:236px}
+
+.legend{display:flex; flex-wrap:wrap; gap:6px 14px; margin:9px 0 0; font-size:11px; color:hsl(46 14% 58%)}
+.legend b{font-size:12px}
+
+/* keyboard: contacts set into the plate */
+.deck{
+  padding:13px 14px 14px;
+  border:1px solid hsl(42 24% 40% / .42);
+  border-radius:28px 20px 30px 22px / 20px 30px 22px 28px;
+  background:linear-gradient(172deg, hsl(285 20% 14% / .8), hsl(290 28% 8% / .78));
+  box-shadow:inset 0 1px 0 hsl(46 40% 60% / .16), 0 14px 28px -22px #000;
+}
+.keys{display:flex; gap:4px; flex-wrap:wrap}
+.keys button{
+  flex:1 1 36px; width:auto; padding:15px 0; font-size:10px; letter-spacing:.04em;
+  border-radius:9px 12px 8px 11px;
+}
+.keys button:nth-child(3n){border-radius:12px 9px 11px 8px}
+.keys button:nth-child(4n){border-radius:8px 11px 12px 9px}
+.deck .cap{color:hsl(46 14% 58%); margin-top:11px}
+.deck .cap code{color:var(--verd-hi)}
+.deck .cap b{color:hsl(46 30% 82%)}
+
+footer{
+  max-width:98ch; margin:0 auto;
+  padding:clamp(18px,3vw,30px) clamp(14px,2.6vw,26px) clamp(28px,4vw,44px);
+  color:hsl(46 12% 62%); font:400 13px/1.62 var(--ui);
+}
+footer h3{
+  margin:0 0 7px; font:700 11px/1.3 var(--ui); letter-spacing:.17em;
+  text-transform:uppercase; color:var(--verd-hi);
+}
+footer section{margin:0 0 20px}
+footer section:last-child{margin-bottom:0}
+footer p{margin:0 0 9px}
+footer code{font-family:var(--mono); font-size:11.5px; color:hsl(46 34% 76%)}
+footer b{color:hsl(46 32% 84%)}
+footer a{color:var(--verd-hi)}
+footer .sib{display:flex; flex-wrap:wrap; gap:8px 10px; margin-top:12px; font-size:11px}
+footer .sib a{
+  padding:5px 11px; border:1px solid hsl(165 34% 36% / .4); border-radius:10px 14px 9px 13px;
+  color:hsl(46 26% 78%); text-decoration:none;
+  background:linear-gradient(170deg, hsl(285 22% 15% / .7), hsl(290 30% 9% / .7));
+}
+footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
+
+.katex{font-size:1em}
+@media(max-width:1080px){
+  main{grid-template-columns:1fr}
+  .bank{grid-template-columns:1fr}
+  .cell,.cell:nth-child(1),.cell:nth-child(2){transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+  button{transition:none}
+  body::after{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nameplate">
+    <div class="brand">PHY<span>S</span>A</div>
+    <div class="tag">charge-controlled memristive element</div>
+  </div>
+
+  <div class="defn">
+    <div class="row"><span class="who">element</span><span class="tex" id="tex1"></span></div>
+    <div class="row"><span class="who">substrate</span><span class="tex" id="tex2"></span></div>
+    <div class="row"><span class="who">output</span><span class="tex" id="tex3"></span></div>
+  </div>
+
+  <div class="hactions">
+    <button id="start" class="wide">Start audio</button>
+    <div class="readout"><span>state</span><span id="ctxVal">stopped</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="side">
+
+    <div class="organ">
+      <h2>M(q) — the memristance curve</h2>
+      <input type="text" id="eq" value="100*((q+1)/2) + 8000*(1-(q+1)/2)" spellcheck="false">
+      <p id="eqErr"></p>
+      <label>
+        <select id="preset">
+          <option value="">— presets —</option>
+        </select>
+      </label>
+      <p class="cap"><code>q</code> runs &minus;1 to 1. <code>Math</code> is in scope, so
+      <code>sin</code>, <code>exp</code>, <code>abs</code> and <code>PI</code> all work.
+      Values are clamped to at least 20&thinsp;&Omega; so the current stays finite.
+      Presets set the curve and every control below it.</p>
+    </div>
+
+    <div class="organ">
+      <h2>Wear</h2>
+      <label>
+        <div class="row"><span>Rate &mu;</span><span class="val" id="muL"></span></div>
+        <input type="range" id="mu" min="4" max="7.5" step="0.02" value="6">
+      </label>
+      <label>
+        <div class="row"><span>Relaxation &tau;</span><span class="val" id="tauL"></span></div>
+        <input type="range" id="tau" min="-3" max="1.7" step="0.02" value="0.3">
+      </label>
+      <label>
+        <div class="row"><span>Charge domain</span><span class="val"></span></div>
+        <select id="edge">
+          <option value="clamp" selected>Clamp at the ends</option>
+          <option value="wrap">Wrap (charge keeps going)</option>
+        </select>
+      </label>
+      <p class="cap"><b>&mu;</b> sets how far a given current moves the charge, and so how much
+      of the curve one cycle sweeps. <b>&tau;</b> pulls the charge back toward zero when
+      nothing is driving it: short &tau; reaches equilibrium at once and holds a steady
+      timbre, long &tau; keeps wearing while a note is held and carries the state into the
+      next note.</p>
+    </div>
+
+    <div class="organ">
+      <h2>Senescence</h2>
+      <label>
+        <div class="row"><span>Half-life</span><span class="val" id="senL"></span></div>
+        <input type="range" id="sen" min="0" max="6" step="0.02" value="0">
+      </label>
+      <label>
+        <div class="row"><span>Substrate</span><span class="val" id="wearL">0.0% worn</span></div>
+        <button id="fresh" class="wide">Fresh substrate</button>
+      </label>
+      <p class="cap">Playing abrades the curve. Where the charge dwells, <code>M(q)</code>
+      blends toward its own mean, so the played stretch loses its shape. The dashed line on
+      the display is the equation you wrote; the solid line is what is left of it. The
+      half-life is quoted at amplitude 1 — louder wears faster. <b>Fresh substrate</b>
+      clears it; editing the equation does not.</p>
+    </div>
+
+    <div class="organ">
+      <h2>Colony</h2>
+      <label>
+        <div class="row"><span>Elements</span><span class="val" id="nL">1</span></div>
+        <input type="range" id="n" min="1" max="8" step="1" value="1">
+      </label>
+      <label>
+        <div class="row"><span>Spread in &mu;</span><span class="val" id="spreadL"></span></div>
+        <input type="range" id="spread" min="0" max="1.5" step="0.01" value="0">
+      </label>
+      <label>
+        <div class="row"><span>Reinforcement</span><span class="val" id="reinL"></span></div>
+        <input type="range" id="rein" min="0" max="1" step="0.01" value="0">
+      </label>
+      <p class="cap">Several elements across the same drive, sharing one substrate.
+      <b>Spread</b> gives them different rates &mu;, so they sit at different points on the
+      curve at once. <b>Reinforcement</b> is Tero's tube law: an element carrying more
+      current thickens and carries more still, an idle one thins back. At 0 the elements
+      are fixed and sum.</p>
+    </div>
+
+    <div class="organ">
+      <h2>Mould</h2>
+      <label>
+        <div class="row"><span>Parallel capacitance</span><span class="val" id="capL"></span></div>
+        <input type="range" id="cap" class="mould" min="0" max="20" step="0.05" value="0">
+      </label>
+      <p class="cap">A capacitance across the element. It carries current and holds no
+      state, so it opens the loop into an ellipse that misses the origin and adds nothing
+      above the fundamental. Raise it and <b>memory</b> climbs while <b>harmonic</b> stays
+      at zero. Its share grows with pitch, which is the inverse of how the element
+      behaves.</p>
+    </div>
+
+  </div>
+
+  <div class="stage">
+    <div class="bank">
+      <div class="cell">
+        <canvas id="curve" width="1040" height="424"></canvas>
+        <p class="cap">M(q) across the charge domain. <b>Dashed</b> is the equation as
+        written, <b>solid</b> is the substrate after wear, and the strip along the bottom is
+        how far each part of the domain has worn. Each marker is one element of the colony,
+        sized by its tube thickness. Playing moves them; releasing lets &tau; carry them back.</p>
+      </div>
+      <div class="cell">
+        <canvas id="loop" width="880" height="472"></canvas>
+        <p class="cap">Current against drive voltage over one cycle, taken before the gain
+        stage. A memristance that varies with charge opens the line into a loop; a constant
+        M(q) collapses it to a straight line. <b>Memory</b> is the share of Fourier energy in
+        coefficients no memoryless device can produce. <b>Harmonic</b> is the share above the
+        fundamental. <b>Pinch</b> is |I| at the voltage zero-crossings, where 0% means the
+        loop passes through the origin — Chua's criterion for memristance, necessary and
+        disputed as sufficient.</p>
+        <div class="legend">
+          <span>memory <b id="memPct" style="color:var(--hot)">—</b></span>
+          <span>harmonic <b id="harmPct" style="color:var(--verd-hi)">—</b></span>
+          <span>pinch <b id="pinchPct" style="color:var(--iris)">—</b></span>
+        </div>
+      </div>
+      <div class="cell">
+        <canvas id="scope" width="880" height="472"></canvas>
+        <p class="cap">Output current. Low notes wear the element further within a cycle and
+        come out dirtier: at the default settings, harmonic content above the fundamental
+        runs 4.5% at 110&nbsp;Hz, 0.76% at 220, 0.18% at 440 and 0.04% at 880 — about a
+        quarter per octave. No keyfollow rule is written anywhere; it falls out of the
+        charge integrating. Below 110&nbsp;Hz the figure climbs steeply and turns sensitive
+        to &mu;: at 55&nbsp;Hz it is 30% at the default rate and 1.6% at a third of it, so
+        treat that end as a setting rather than a property. Amplitude enters the same way,
+        0.2% at 0.25 rising to 18% at 2.</p>
+      </div>
+    </div>
+
+    <div class="deck">
+      <div class="keys" id="keys"></div>
+      <p class="cap">Keyboard row <code>a w s e d f t g y h u j k</code> also plays.
+      With a long &tau;, holding a note dulls it as the charge settles — at &tau; = 3&nbsp;s,
+      4.9% down to 3.5% harmonic content over 2.2&nbsp;s, and further with relaxation off.
+      At &tau; = 20&nbsp;ms it reaches equilibrium at once and holds 5.4% flat instead.</p>
+    </div>
+
+    <div class="footrow">
+      <div class="organ">
+        <h2>Drive</h2>
+        <label>
+          <div class="row"><span>Amplitude</span><span class="val" id="ampL"></span></div>
+          <input type="range" id="amp" min="0.05" max="2" step="0.01" value="1">
+        </label>
+        <label>
+          <div class="row"><span>Output level</span><span class="val" id="gainL"></span></div>
+          <input type="range" id="gain" min="0" max="1" step="0.01" value="0.4">
+        </label>
+        <label>
+          <div class="row"><span>Auto level</span><span class="val"></span></div>
+          <select id="auto">
+            <option value="1" selected>On — flatten the M(q) gain swing</option>
+            <option value="0">Off — raw current, 80:1 range</option>
+          </select>
+        </label>
+        <p class="cap">The current is <code>v/M(q)</code>, so output level tracks
+        <code>1/M</code> and swings as widely as the curve — 80:1 on the HP preset. Auto
+        level is a slow (80&thinsp;ms) gain that flattens the swing without touching the
+        waveform inside a cycle, so timbre and keyfollow survive it. Turn it off to hear
+        the raw current.</p>
+      </div>
+
+      <div class="organ">
+        <h2>State</h2>
+        <div class="readout"><span>charge q</span><span id="qVal">—</span></div>
+        <div class="readout"><span>M(q)</span><span id="mVal">—</span></div>
+        <div class="readout"><span>peak out</span><span id="pkVal">—</span></div>
+        <div class="readout"><span>substrate worn</span><span id="wVal">0.0%</span></div>
+        <div class="readout"><span>played</span><span id="ageVal">0.0 s</span></div>
+        <div class="readout"><span>oversampling</span><span id="osVal">8×</span></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <section>
+    <h3>The name</h3>
+    <p><i>Physa</i> is Greek for bellows, and it is the root of <i>Physarum</i>, the slime
+    mould named for its sporangia. That organism was reported as a biological memristor in
+    2015 (Gale, de Lacy Costello and Adamatzky), and roughly a decade of computer music was
+    built on it. In 2025 Schmidt, Seyfried, Reutina, Seskir and Miranda characterised
+    multiple specimens and found no significant memristance: elliptical I–V curves produced
+    by the organism's own capacitance, which they reproduced with resistors and capacitors
+    alone (<i>MRS Advances</i> 10(14): 1710–1716). Miranda had composed the music.
+    The <b>Mould</b> control puts that measurement on a dial, so the false positive is
+    audible and visible beside the ideal element it was mistaken for.</p>
+  </section>
+
+  <section>
+    <h3>Why this is not a simulation of a device</h3>
+    <p>Chua deduced the memristor in 1971 from the symmetry of <code>v, i, q, φ</code> — it
+    existed as a gap in a table before it existed as anything else. Whether matter can
+    realise the ideal element is disputed: Vongehr and Meng argue it is likely impossible
+    (<i>Sci. Rep.</i> 5:11657), and Pershin and Di Ventra's charge-only test has disqualified
+    claimed devices. Those results constrain hardware. Here the element is exactly its
+    definition, and <b>M(q)</b> can be any curve at all — periodic in charge, discontinuous,
+    whatever matter would refuse.</p>
+  </section>
+
+  <section>
+    <h3>What it claims</h3>
+    <p>The claim is about specification, not about reachable timbres — any single instant of
+    this output is reachable by some waveshaper. One equation and two constants yield a
+    nonlinearity that keyfollows, tracks level, and carries history across notes, none of
+    which was written as a rule. Senescence extends that to a third timescale: the curve
+    itself is a state variable, and an hour of playing leaves an element that no longer
+    matches its own definition.</p>
+    <div class="sib">
+      <a href="../">Anexacta</a>
+      <a href="../aliquoto/">Aliquoto — additive</a>
+      <a href="../cella/">Cella — resonant</a>
+      <a href="../moire/">Moire — phase modulation</a>
+      <a href="./physa.md">Notes</a>
+    </div>
+  </section>
+</footer>
+
+<script>
+"use strict";
+
+/* ---- the worklet -------------------------------------------------------- */
+const WORKLET = `
+// The senescence half-life is derived below for a charge that sits still. The
+// charge does not sit still: it sweeps a wide stretch of the domain, so the
+// deposit reaching any one bin is diluted by roughly the ratio of the swept width
+// to the width of the deposit kernel. Measured at 42x for the default curve and
+// drive (HP, mu = 1e6, 110 Hz, amplitude 1) by test.html, which is why the quoted
+// half-life is nominal rather than exact: a wider sweep spreads the wear further
+// and takes longer.
+const SWEEP_DILUTION = 42;
+
+class PhysaProc extends AudioWorkletProcessor {
+  constructor(options){
+    super();
+    this.MAXN=8; this.N=1;
+    this.q=new Float64Array(this.MAXN);
+    this.D=new Float64Array(this.MAXN).fill(1);
+    this.muK=new Float64Array(this.MAXN).fill(1e6);
+    this.phase=0; this.env=0; this.gate=0;
+    this.lut=new Float32Array(1024).fill(1200);
+    this.wear=new Float32Array(1024);
+    this.flat=1200;
+    this.mu=1e6; this.tau=2; this.edge=0;
+    this.spread=0; this.rein=0; this.tauD=0.35;
+    this.capF=0; this.thalf=0; this.senes=0;
+    this.freq=110; this.amp=1; this.OS=8; this.tick=0; this.Rref=1200;
+    this.dcx=0; this.dcy=0; this.ms=1e-4; this.g=1; this.auto=1; this.peak=0;
+    this.age=0;
+    // one drive cycle of (v, i) for the hysteresis loop, captured pre-AGC so the
+    // curve shows the element rather than the gain stage
+    this.LOOP=256; this.lv=new Float32Array(this.LOOP); this.li=new Float32Array(this.LOOP);
+    this.lph=new Float32Array(this.LOOP);
+    for(let i=0;i<this.LOOP;i++) this.lph[i]=i/this.LOOP;
+    this.port.onmessage = e => { this.take(e.data); };
+    // Initial state via processorOptions. Port messages are not reliably delivered
+    // before the first process() call in an OfflineAudioContext, so anything that
+    // must be set up front comes through here instead.
+    const o=(options&&options.processorOptions)||null;
+    if(o) this.take(o);
+  }
+
+  take(d){
+    if(d.lut){
+      this.lut=d.lut;
+      // Fixed reference resistance for output scaling. It MUST be constant:
+      // scaling by the instantaneous M(q) would give i*M(q) = v exactly and cancel
+      // the element out, leaving the bare drive sine. Use the MINIMUM of M, not the
+      // mean: output is v*Rref/M(q), so a mean reference lets the gain reach
+      // mean/min - 40x on the HP curve - and clip hard at full wear.
+      let lo=Infinity, sum=0;
+      for(let i=0;i<d.lut.length;i++){ if(d.lut[i]<lo) lo=d.lut[i]; sum+=d.lut[i]; }
+      this.Rref=lo; this.flat=sum/d.lut.length;
+      this.recalcSen();
+    }
+    if(d.mu!==undefined){ this.mu=d.mu; this.setColony(); }
+    if(d.tau!==undefined) this.tau=d.tau;
+    if(d.edge!==undefined) this.edge=d.edge;
+    if(d.amp!==undefined) this.amp=d.amp;
+    if(d.auto!==undefined) this.auto=d.auto;
+    if(d.capF!==undefined) this.capF=d.capF;
+    if(d.rein!==undefined) this.rein=d.rein;
+    if(d.thalf!==undefined){ this.thalf=d.thalf; this.recalcSen(); }
+    if(d.N!==undefined){
+      const old=this.N; this.N=d.N;
+      for(let e=old;e<this.N;e++){ this.q[e]=0; this.D[e]=1; }
+      this.setColony();
+    }
+    if(d.spread!==undefined){ this.spread=d.spread; this.setColony(); }
+    if(d.fresh){ this.wear.fill(0); this.age=0; }
+    if(d.noteOn!==undefined){ this.freq=d.noteOn; this.gate=1; }
+    if(d.noteOff!==undefined) this.gate=0;
+  }
+
+  setColony(){
+    const N=this.N;
+    for(let e=0;e<N;e++){
+      const t = N>1 ? (e/(N-1)-0.5) : 0;
+      this.muK[e]=this.mu*Math.pow(10, this.spread*t);
+    }
+  }
+
+  // thalf is the half-life of the wear at amplitude 1, quoted where the charge
+  // dwells. dw/dt = senes*p*(1-w) with p = |v*i|; at amplitude 1 on a curve of
+  // mean resistance flat, the cycle-average of p is 0.5/flat, so senes must be
+  // 2*flat*ln2/thalf for w to reach 0.5 at t = thalf.
+  recalcSen(){
+    this.senes = this.thalf>0
+      ? SWEEP_DILUTION*2*this.flat*Math.LN2/this.thalf : 0;
+  }
+
+  M(q){
+    const L=this.lut, W=this.wear, n=L.length;
+    let u=(q+1)*0.5;
+    if(this.edge){ u=u-Math.floor(u); }    // wrap
+    else { u = u<0?0 : u>1?1 : u; }        // clamp
+    const x=u*(n-1), i=Math.floor(x), f=x-i, j=i+1<n?i+1:n-1;
+    const a=L[i]+(L[j]-L[i])*f;
+    const w=W[i]+(W[j]-W[i])*f;
+    const m = w>0 ? a+(this.flat-a)*w : a;
+    return m<20?20:m;                      // keep the current finite
+  }
+
+  // Abrasion. Deposited over a few bins so the wear map stays smooth; the kernel
+  // peaks at 1 rather than summing to 1, so a stationary charge wears its own bin
+  // at exactly the quoted rate.
+  deposit(q, amt){
+    const W=this.wear, n=W.length, R=6;
+    let u=(q+1)*0.5;
+    if(this.edge){ u=u-Math.floor(u); } else { u = u<0?0 : u>1?1 : u; }
+    const c=Math.round(u*(n-1));
+    for(let d=-R;d<=R;d++){
+      let i=c+d;
+      if(this.edge){ i=((i%n)+n)%n; } else if(i<0||i>=n) continue;
+      const a=amt*(1-Math.abs(d)/(R+1));
+      W[i]+=a*(1-W[i]);
+      if(W[i]>1) W[i]=1;
+    }
+  }
+
+  process(inputs, outputs){
+    const out=outputs[0][0], sr=sampleRate, OS=this.OS, N=this.N;
+    const dt=1/(sr*OS), om=2*Math.PI*this.freq;
+    const relax = this.tau>0 ? 1/this.tau : 0;
+    const aC=Math.exp(-1/(0.004*sr)), rC=Math.exp(-1/(0.25*sr));
+    const dD=dt/this.tauD;
+    const Dlo=1-0.85*this.rein, Dhi=1+3*this.rein;
+    const iRef=1/this.flat, capOn=this.capF>0, reinOn=this.rein>0;
+    for(let s=0;s<out.length;s++){
+      this.env = this.gate ? 1+(this.env-1)*aC : this.env*rC;
+      let acc=0, wsum=0, vLast=0, iLast=0;
+      for(let k=0;k<OS;k++){
+        this.phase += om*dt;
+        if(this.phase>2*Math.PI) this.phase-=2*Math.PI;
+        const drv=this.amp*this.env;
+        const v=drv*Math.sin(this.phase);
+        let isum=0;
+        for(let e=0;e<N;e++){
+          const m=this.M(this.q[e]);
+          const ie=v*this.D[e]/m;
+          this.q[e] += (this.muK[e]*ie - this.q[e]*relax)*dt;
+          if(!this.edge){ if(this.q[e]<-1)this.q[e]=-1; else if(this.q[e]>1)this.q[e]=1; }
+          if(reinOn){
+            // Tero's tube law: conductance climbs with the current the tube carries
+            // and relaxes otherwise. Saturating, so the positive feedback is bounded.
+            const t=Math.abs(ie)/iRef;
+            this.D[e] += (Dlo+(Dhi-Dlo)*(t/(1+t))-this.D[e])*dD;
+          }
+          isum+=ie;
+        }
+        isum/=N;
+        // The mould branch. A capacitance in parallel carries current and holds no
+        // state at all, so it contributes pure quadrature at the fundamental: the
+        // loop opens into an ellipse and nothing appears above the fundamental.
+        const ic = capOn ? this.capF*drv*om*Math.cos(this.phase) : 0;
+        const itot=isum+ic;
+        // Hann-weighted average over the oversampled substeps: a cheap but real
+        // decimation filter. Not a designed half-band; see the notes.
+        const wt=0.5-0.5*Math.cos(2*Math.PI*(k+0.5)/OS);
+        acc+=itot*this.Rref*wt; wsum+=wt;
+        vLast=v; iLast=itot*this.Rref;
+      }
+      let y=acc/wsum;
+
+      if(this.env>1e-4){
+        this.age+=1/sr;
+        if(this.senes>0){
+          for(let e=0;e<N;e++){
+            const me=this.M(this.q[e]);
+            this.deposit(this.q[e], this.senes*vLast*vLast*this.D[e]/me/sr);
+          }
+        }
+      }
+
+      // sample the loop on a phase grid, so it is one cycle regardless of pitch
+      const ph=this.phase/(2*Math.PI);
+      const slot=Math.min(this.LOOP-1, Math.floor(ph*this.LOOP));
+      // Store the sample's own phase, not the slot's nominal phase. Several samples
+      // fall in one slot and the last one wins, which lands systematically near the
+      // top of the slot; assuming the nominal phase therefore skews every reading by
+      // about half a slot and reports memory where there is none.
+      this.lv[slot]=vLast; this.li[slot]=iLast; this.lph[slot]=ph;
+
+      // DC blocker. Asymmetric traversal of M(q) half-wave rectifies the current,
+      // which puts a large offset on the output and wastes headroom. One-pole
+      // highpass at ~15 Hz.
+      const dc = y - this.dcx + 0.998*this.dcy;
+      this.dcx = y; this.dcy = dc; y = dc;
+
+      if(this.auto){
+        // Slow AGC. Output gain is min(M)/M(q), which for a curve spanning
+        // 100..8000 ohms swings 80:1 - inaudible at one end, blaring at the other.
+        // The detector runs at ~80 ms so it flattens that swing without touching
+        // the waveform shape inside a cycle, leaving the harmonic content (and so
+        // the keyfollow and level-dependence behaviour) intact.
+        const c = Math.exp(-1/(0.08*sr));
+        this.ms = this.ms*c + y*y*(1-c);
+        const rms = Math.sqrt(this.ms);
+        let g = rms > 1e-6 ? 0.25/rms : 0;
+        if(g > 200) g = 200;
+        this.g = this.g*c + g*(1-c);
+        y *= this.g;
+      }
+
+      // Soft limiter: identity below the threshold, smooth above it, so it does not
+      // colour normal playing and only catches transients.
+      const t=0.9, a=Math.abs(y);
+      if(a>t) y = Math.sign(y)*(t + (1-t)*Math.tanh((a-t)/(1-t)));
+
+      if(a>this.peak) this.peak=a;
+      out[s]=y;
+    }
+    if((this.tick=(this.tick+1)%12)===0){
+      const N=this.N;
+      const qs=new Float32Array(N), ds=new Float32Array(N);
+      let msum=0;
+      for(let e=0;e<N;e++){ qs[e]=this.q[e]; ds[e]=this.D[e]; msum+=this.M(this.q[e]); }
+      const wn=128, ws=new Float32Array(wn), step=this.wear.length/wn;
+      let wsum=0;
+      for(let i=0;i<wn;i++){ ws[i]=this.wear[Math.floor(i*step)]; wsum+=ws[i]; }
+      this.port.postMessage({qs:qs, ds:ds, m:msum/N, peak:this.peak, age:this.age,
+                             wear:ws, wmean:wsum/wn, lv:this.lv.slice(), li:this.li.slice(),
+                             lph:this.lph.slice()});
+      this.peak=0;
+    }
+    return true;
+  }
+}
+registerProcessor('physa', PhysaProc);
+`;
+
+/* ---- presets ------------------------------------------------------------ */
+/* A preset sets the curve and every control under it, so the two that are about
+   a whole configuration rather than a curve can exist at all. */
+const BASE = {mu:6, tau:0.3, edge:"clamp", sen:0, n:1, spread:0, rein:0, cap:0, amp:1};
+const PRESETS = [
+  {name:"Constant — a plain resistor, no memory", eq:"1200"},
+  {name:"HP linear drift", eq:"100*((q+1)/2) + 8000*(1-(q+1)/2)"},
+  {name:"Periodic in charge (unbuildable)", eq:"1200 + 1000*sin(9*PI*q)"},
+  {name:"Narrow well at q=0", eq:"8000 - 7700*exp(-30*q*q)"},
+  {name:"Hard switch", eq:"q < 0 ? 7000 : 400"},
+  {name:"Quartic soft knee", eq:"600 + 5000*q*q*q*q"},
+  {name:"Physarum as measured, 2025 — RC only", eq:"1200", cap:1.4},
+  {name:"Colony — six tubes, reinforcing", eq:"100*((q+1)/2) + 8000*(1-(q+1)/2)",
+   n:6, spread:0.75, rein:0.7},
+  {name:"Senescent — wears out in a minute", eq:"1200 + 1000*sin(9*PI*q)",
+   sen:2*Math.log10(60), tau:1.0}
+];
+
+/* ---- main thread -------------------------------------------------------- */
+const NOTES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const KEYROW="awsedftgyhujk";
+const LUTN=1024;
+let ctx=null, node=null, gainNode=null, analyser=null, held=new Set();
+const ui = id => document.getElementById(id);
+
+function compile(src){
+  const f = new Function("q", "with(Math){ return ("+src+"); }");
+  const lut = new Float32Array(LUTN);
+  for(let i=0;i<LUTN;i++){
+    const q = -1 + 2*i/(LUTN-1);
+    const v = f(q);
+    if(!isFinite(v)) throw new Error("M(q) is not finite at q="+q.toFixed(2));
+    lut[i] = Math.max(20, v);
+  }
+  return lut;
+}
+
+let LUT = compile(ui("eq").value);
+let FLAT = 1200;
+function flatten(){ let s=0; for(const v of LUT) s+=v; FLAT=s/LUT.length; }
+flatten();
+
+function pushLUT(){
+  try{
+    LUT = compile(ui("eq").value);
+    flatten();
+    ui("eqErr").textContent="";
+    if(node) node.port.postMessage({lut:LUT});
+  }catch(err){ ui("eqErr").textContent = err.message; }
+}
+
+const halfLife = () => { const v=+ui("sen").value; return v<=0 ? 0 : Math.pow(10, v/2); };
+
+function params(){
+  if(!node) return;
+  node.port.postMessage({
+    mu: Math.pow(10, +ui("mu").value),
+    tau: ui("tau").value>=1.69 ? 0 : Math.pow(10, +ui("tau").value),
+    edge: ui("edge").value==="wrap" ? 1 : 0,
+    amp: +ui("amp").value,
+    auto: +ui("auto").value,
+    capF: (+ui("cap").value)*1e-6,
+    thalf: halfLife(),
+    N: +ui("n").value,
+    spread: +ui("spread").value,
+    rein: +ui("rein").value
+  });
+}
+
+function labels(){
+  ui("muL").textContent = Math.pow(10,+ui("mu").value).toExponential(1);
+  ui("tauL").textContent = ui("tau").value>=1.69 ? "off (no relaxation)"
+    : (Math.pow(10,+ui("tau").value)*1000).toFixed(0)+" ms";
+  ui("ampL").textContent = (+ui("amp").value).toFixed(2);
+  ui("gainL").textContent = (+ui("gain").value).toFixed(2);
+  const T=halfLife();
+  ui("senL").textContent = T===0 ? "off (no ageing)"
+    : T<90 ? T.toFixed(T<10?1:0)+" s" : (T/60).toFixed(T<600?1:0)+" min";
+  const n=+ui("n").value;
+  ui("nL").textContent = n===1 ? "1 (single element)" : n;
+  const sp=+ui("spread").value;
+  ui("spreadL").textContent = sp===0 ? "identical" : "±"+(sp/2).toFixed(2)+" decades";
+  const re=+ui("rein").value;
+  ui("reinL").textContent = re===0 ? "off (tubes fixed)" : re.toFixed(2);
+  const c=+ui("cap").value;
+  ui("capL").textContent = c===0 ? "none" : c.toFixed(2)+" µF";
+}
+
+let qs=new Float32Array(1), ds=new Float32Array([1]), mNow=0, pkNow=0;
+let wearArr=null, wMean=0, ageNow=0, loopV=null, loopI=null, loopP=null;
+
+async function start(){
+  if(ctx){ if(ctx.state==="suspended") ctx.resume(); return; }
+  ctx = new (window.AudioContext||window.webkitAudioContext)();
+  const url = URL.createObjectURL(new Blob([WORKLET],{type:"application/javascript"}));
+  await ctx.audioWorklet.addModule(url);
+  URL.revokeObjectURL(url);
+  node = new AudioWorkletNode(ctx,"physa",{numberOfInputs:0,outputChannelCount:[1]});
+  node.port.onmessage = e => {
+    const d=e.data;
+    qs=d.qs; ds=d.ds; mNow=d.m; pkNow=d.peak||0;
+    wearArr=d.wear; wMean=d.wmean; ageNow=d.age;
+    if(d.lv){ loopV=d.lv; loopI=d.li; loopP=d.lph; }
+  };
+  gainNode = ctx.createGain(); gainNode.gain.value = +ui("gain").value;
+  analyser = ctx.createAnalyser(); analyser.fftSize=2048;
+  node.connect(analyser).connect(gainNode).connect(ctx.destination);
+  node.port.postMessage({lut:LUT});
+  params();
+  ui("start").textContent="Audio running";
+  ui("ctxVal").textContent="running";
+  ui("osVal").textContent = "8× @ "+ctx.sampleRate+" Hz";
+}
+
+function noteOn(midi){
+  if(!ctx){ start().then(()=>noteOn(midi)); return; }
+  held.add(midi);
+  node.port.postMessage({noteOn: 440*Math.pow(2,(midi-69)/12)});
+  paintKeys();
+}
+function noteOff(midi){
+  held.delete(midi);
+  if(held.size===0){ if(node) node.port.postMessage({noteOff:1}); }
+  else node.port.postMessage({noteOn: 440*Math.pow(2,([...held].pop()-69)/12)});
+  paintKeys();
+}
+
+function buildKeys(){
+  const host=ui("keys");
+  for(let m=48;m<=72;m++){
+    const b=document.createElement("button");
+    b.textContent = NOTES[m%12]+(Math.floor(m/12)-1);
+    b.dataset.midi=m;
+    b.addEventListener("pointerdown",e=>{e.preventDefault();noteOn(m);});
+    b.addEventListener("pointerup",()=>noteOff(m));
+    b.addEventListener("pointerleave",()=>{ if(held.has(m)) noteOff(m); });
+    host.appendChild(b);
+  }
+}
+function paintKeys(){
+  for(const b of ui("keys").children)
+    b.classList.toggle("lit", held.has(+b.dataset.midi));
+}
+
+addEventListener("keydown",e=>{
+  if(e.repeat || e.target.tagName==="INPUT" || e.target.tagName==="SELECT") return;
+  const i=KEYROW.indexOf(e.key.toLowerCase());
+  if(i>=0) noteOn(60+i);
+});
+addEventListener("keyup",e=>{
+  const i=KEYROW.indexOf(e.key.toLowerCase());
+  if(i>=0) noteOff(60+i);
+});
+
+/* ---- drawing ------------------------------------------------------------ */
+const CSS = {};
+function readCSS(){
+  const s=getComputedStyle(document.body);
+  for(const k of ["hot","verd","verd-hi","verd-d","iris","slime","slime-d","bronze","faint","pale"])
+    CSS[k]=s.getPropertyValue("--"+k).trim();
+}
+
+function fit(cv){
+  const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1, 2);
+  const W=Math.round(r.width*d), H=Math.round(r.height*d);
+  if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; }
+  const g=cv.getContext("2d"); g.setTransform(d,0,0,d,0,0);
+  return {g,w:r.width,h:r.height};
+}
+
+/* the substrate as the element actually sees it: authored curve blended toward
+   its own mean by however far each part of the domain has worn */
+function wearAt(u){
+  if(!wearArr) return 0;
+  const x=u*(wearArr.length-1), i=Math.floor(x), f=x-i;
+  const j=Math.min(wearArr.length-1,i+1);
+  return wearArr[i]+(wearArr[j]-wearArr[i])*f;
+}
+
+function drawCurve(){
+  const {g,w,h}=fit(ui("curve"));
+  g.clearRect(0,0,w,h);
+  const padL=42, padR=16, padT=14, padB=40;
+  const W=w-padL-padR, H=h-padT-padB;
+  let lo=Infinity, hi=-Infinity;
+  for(const v of LUT){ if(v<lo)lo=v; if(v>hi)hi=v; }
+  if(hi-lo<1) hi=lo+1;
+  const X=q=>padL+(q+1)/2*W, Y=m=>padT+H-(m-lo)/(hi-lo)*H;
+
+  g.strokeStyle="hsl(285 22% 22%)"; g.lineWidth=1; g.beginPath();
+  g.moveTo(padL,padT+H); g.lineTo(padL+W,padT+H); g.moveTo(X(0),padT); g.lineTo(X(0),padT+H);
+  g.stroke();
+
+  // the wear strip: how far each part of the domain has gone
+  if(wearArr){
+    const sh=13;
+    g.fillStyle="hsl(52 30% 18% / .5)";
+    g.fillRect(padL,padT+H+6,W,sh);
+    g.fillStyle=CSS.slime;
+    for(let i=0;i<wearArr.length;i++){
+      const x0=padL+i/wearArr.length*W, bw=W/wearArr.length+0.6;
+      const a=wearArr[i];
+      if(a<=0.002) continue;
+      g.globalAlpha=Math.min(1,a*0.92);
+      g.fillRect(x0,padT+H+6,bw,sh);
+    }
+    g.globalAlpha=1;
+    g.strokeStyle="hsl(46 40% 40% / .55)"; g.strokeRect(padL,padT+H+6,W,sh);
+  }
+
+  // authored curve, dashed
+  g.setLineDash([4,4]); g.strokeStyle="hsl(285 30% 46%)"; g.lineWidth=1.2;
+  g.beginPath();
+  for(let i=0;i<LUTN;i+=2){ const q=-1+2*i/(LUTN-1);
+    i?g.lineTo(X(q),Y(LUT[i])):g.moveTo(X(q),Y(LUT[i])); }
+  g.stroke(); g.setLineDash([]);
+
+  // the worn substrate, solid
+  g.strokeStyle=CSS["verd-hi"]; g.lineWidth=1.8; g.beginPath();
+  for(let i=0;i<LUTN;i+=2){
+    const q=-1+2*i/(LUTN-1), u=i/(LUTN-1), a=LUT[i];
+    const ww=wearAt(u), m=ww>0 ? a+(FLAT-a)*ww : a;
+    i?g.lineTo(X(q),Y(m)):g.moveTo(X(q),Y(m));
+  }
+  g.stroke();
+
+  // one marker per element, sized by tube thickness
+  const wrap = ui("edge").value==="wrap";
+  for(let e=0;e<qs.length;e++){
+    let u=(qs[e]+1)/2; u = wrap ? u-Math.floor(u) : Math.max(0,Math.min(1,u));
+    const a=LUT[Math.round(u*(LUTN-1))], ww=wearAt(u);
+    const m=ww>0 ? a+(FLAT-a)*ww : a;
+    const r=3.2+2.6*Math.min(2,(ds[e]||1));
+    g.fillStyle=CSS.hot; g.globalAlpha=qs.length>1?0.82:1;
+    g.beginPath(); g.arc(X(-1+2*u), Y(Math.max(20,m)), r, 0, 7); g.fill();
+    g.globalAlpha=1;
+    g.strokeStyle="hsl(27 60% 16%)"; g.lineWidth=1; g.stroke();
+  }
+
+  g.fillStyle="hsl(46 14% 52%)"; g.font="10px 'Space Mono',monospace";
+  g.fillText(Math.round(hi)+"Ω",4,padT+9);
+  g.fillText(Math.round(lo)+"Ω",4,padT+H);
+  g.fillText("q = −1",padL,h-6);
+  g.textAlign="right"; g.fillText("q = 1",padL+W,h-6); g.textAlign="left";
+}
+
+function drawScope(){
+  const {g,w,h}=fit(ui("scope"));
+  g.clearRect(0,0,w,h);
+  g.strokeStyle="hsl(285 22% 22%)"; g.lineWidth=1;
+  g.beginPath(); g.moveTo(0,h/2); g.lineTo(w,h/2); g.stroke();
+  if(!analyser) return;
+  const buf=new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  let peak=1e-6; for(const v of buf) peak=Math.max(peak,Math.abs(v));
+  g.strokeStyle=CSS.hot; g.lineWidth=1.5; g.beginPath();
+  for(let i=0;i<buf.length;i++){
+    const x=i/buf.length*w, y=h/2 - (buf[i]/peak)*(h/2-10);
+    i?g.lineTo(x,y):g.moveTo(x,y);
+  }
+  g.stroke();
+}
+
+/* hysterion's two tests, applied live to the note being played, plus the one that
+   separates them.
+
+   Memory: a device whose current depends only on the instantaneous voltage
+   satisfies I(theta) = I(pi - theta), which forces a_odd = 0 and b_even = 0.
+   Energy in those coefficients cannot occur without internal state.
+   Harmonic: the share above the fundamental. A linear reactance has state and
+   produces none of it, so this is what separates a memristor from an RC network.
+   Pinch: |I| at the voltage zero-crossings, as a share of peak current. */
+function loopMeasures(V, I, PH){
+  const n=V.length; let memE=0, totE=0, harmE=0;
+  for(let k=1;k<=16;k++){
+    let a=0,b=0;
+    for(let j=0;j<n;j++){ const th=2*Math.PI*(PH?PH[j]:j/n);
+      a+=I[j]*Math.cos(k*th); b+=I[j]*Math.sin(k*th); }
+    a=2*a/n; b=2*b/n;
+    const e=a*a+b*b;
+    totE+=e;
+    if(k>1) harmE+=e;
+    if(k%2===1) memE+=a*a; else memE+=b*b;
+  }
+  let peak=0; for(let j=0;j<n;j++) peak=Math.max(peak,Math.abs(I[j]));
+  let zc=0,cnt=0;
+  for(let j=0;j<n;j++){
+    const j2=(j+1)%n;
+    if((V[j]<=0&&V[j2]>0)||(V[j]>=0&&V[j2]<0)){
+      const t=V[j]/(V[j]-V[j2]||1e-12);
+      zc+=Math.abs(I[j]+(I[j2]-I[j])*t); cnt++;
+    }
+  }
+  return {H: totE>0?memE/totE:0, harm: totE>0?harmE/totE:0,
+          pinch:(cnt&&peak>0)?(zc/cnt)/peak:0, peak};
+}
+
+function drawLoop(){
+  const {g,w,h}=fit(ui("loop"));
+  g.clearRect(0,0,w,h);
+  const pad=26, W=w-pad*2, H=h-pad*2;
+  g.strokeStyle="hsl(285 22% 22%)"; g.lineWidth=1;
+  g.beginPath(); g.moveTo(pad,pad+H/2); g.lineTo(pad+W,pad+H/2);
+  g.moveTo(pad+W/2,pad); g.lineTo(pad+W/2,pad+H); g.stroke();
+  if(!loopV) return;
+  const m=loopMeasures(loopV, loopI, loopP);
+  let vm=0; for(const v of loopV) vm=Math.max(vm,Math.abs(v));
+  const im=m.peak||1e-9;
+  if(vm<1e-9) return;
+  const X=v=>pad+W/2+(v/(vm*1.08))*(W/2), Y=i=>pad+H/2-(i/(im*1.08))*(H/2);
+  g.strokeStyle=CSS.hot; g.lineWidth=1.7; g.beginPath();
+  for(let k=0;k<=loopV.length;k++){ const j=k%loopV.length;
+    k?g.lineTo(X(loopV[j]),Y(loopI[j])):g.moveTo(X(loopV[j]),Y(loopI[j])); }
+  g.stroke();
+  g.strokeStyle="hsl(285 40% 40%)"; g.lineWidth=1;
+  g.beginPath(); g.arc(X(0),Y(0),5,0,7); g.stroke();
+  g.fillStyle="hsl(46 14% 52%)"; g.font="10px 'Space Mono',monospace";
+  g.fillText("V",pad+W-9,pad+H/2-7); g.fillText("I",pad+W/2+7,pad+10);
+  ui("memPct").textContent = (m.H*100).toFixed(1)+"%";
+  ui("harmPct").textContent = (m.harm*100).toFixed(1)+"%";
+  ui("pinchPct").textContent = (m.pinch*100).toFixed(1)+"%";
+}
+
+function frame(){
+  ui("qVal").textContent = qs.length>1
+    ? qs[0].toFixed(3)+" … "+qs[qs.length-1].toFixed(3)
+    : qs[0].toFixed(4);
+  ui("mVal").textContent = mNow ? Math.round(mNow)+" Ω" : "—";
+  ui("pkVal").textContent = pkNow ? pkNow.toFixed(3) : "—";
+  const wp=(wMean*100);
+  ui("wVal").textContent = wp.toFixed(1)+"%";
+  ui("wearL").textContent = wp.toFixed(1)+"% worn";
+  ui("ageVal").textContent = ageNow<90 ? ageNow.toFixed(1)+" s"
+    : (ageNow/60).toFixed(1)+" min";
+  document.documentElement.style.setProperty("--age", Math.min(1,wMean*1.6).toFixed(3));
+  drawCurve(); drawLoop(); drawScope();
+  requestAnimationFrame(frame);
+}
+
+/* ---- wiring ------------------------------------------------------------- */
+function buildPresets(){
+  const sel=ui("preset");
+  PRESETS.forEach((p,i)=>{
+    const o=document.createElement("option");
+    o.value=String(i); o.textContent=p.name;
+    sel.appendChild(o);
+  });
+}
+
+function applyPreset(i){
+  const p=PRESETS[i]; if(!p) return;
+  const cfg=Object.assign({}, BASE, p);
+  ui("eq").value=p.eq;
+  ui("mu").value=cfg.mu; ui("tau").value=cfg.tau; ui("edge").value=cfg.edge;
+  ui("sen").value=cfg.sen; ui("n").value=cfg.n; ui("spread").value=cfg.spread;
+  ui("rein").value=cfg.rein; ui("cap").value=cfg.cap; ui("amp").value=cfg.amp;
+  pushLUT(); labels(); params();
+}
+
+ui("eq").addEventListener("input", pushLUT);
+ui("preset").addEventListener("change", e=>{
+  if(e.target.value==="") return;
+  applyPreset(+e.target.value);
+});
+for(const id of ["mu","tau","amp","edge","auto","cap","sen","n","spread","rein"])
+  ui(id).addEventListener("input", ()=>{ labels(); params(); });
+ui("gain").addEventListener("input", e=>{
+  labels(); if(gainNode) gainNode.gain.value=+e.target.value;
+});
+ui("start").addEventListener("click", start);
+ui("fresh").addEventListener("click", ()=>{
+  if(node) node.port.postMessage({fresh:1});
+  wearArr=null; wMean=0; ageNow=0;
+});
+addEventListener("resize", readCSS);
+
+function typeset(){
+  if(!window.katex){ setTimeout(typeset,120); return; }
+  const opt={throwOnError:false, displayMode:false};
+  katex.render("i_e=\\dfrac{v\\,D_e}{M(q_e)},\\quad \\dot q_e=\\mu_e i_e-\\dfrac{q_e}{\\tau},\\quad \\dot D_e=\\dfrac{1}{\\tau_D}\\!\\left(\\dfrac{s}{1+s}-D_e\\right)", ui("tex1"), opt);
+  katex.render("M(q)=\\bigl(1-w(q)\\bigr)M_0(q)+w(q)\\,\\langle M_0\\rangle,\\quad \\dot w=\\sigma\\,|vi|\\,(1-w)", ui("tex2"), opt);
+  katex.render("i=\\dfrac{1}{N}\\sum_e i_e+C\\dfrac{dv}{dt}", ui("tex3"), opt);
+}
+
+readCSS(); buildPresets(); buildKeys(); labels(); pushLUT(); typeset(); frame();
+</script>
+</body>
+</html>

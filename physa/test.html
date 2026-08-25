@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Physa — offline measurement</title>
+<style>
+body{margin:0;padding:20px;background:#14101c;color:#d8d3c2;font:13px/1.5 ui-monospace,Consolas,monospace}
+h1{font-size:15px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 4px}
+p.sub{color:#8b8298;margin:0 0 18px;max-width:88ch}
+button{font:inherit;background:#3a2a18;color:#e8d9b0;border:1px solid #6b5a30;border-radius:5px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:#5fd6b0}
+pre{white-space:pre-wrap;margin:16px 0 0;line-height:1.55}
+.pass{color:#6fd6a8}.fail{color:#e0707f}.note{color:#8b8298}.hd{color:#e8b25a}
+</style>
+</head>
+<body>
+<h1>Physa — offline measurement</h1>
+<p class="sub">Renders the actual worklet from <code>index.html</code> in an OfflineAudioContext and
+measures it, rather than describing it. The worklet source is extracted from the page at run time,
+so this cannot drift from what ships. Every DFT window asserts <code>offset + window &lt;= buffer.length</code>
+before a zero is believed — a previous harness here read past the end of the buffer twice and
+reported the resulting zeros as real.</p>
+<button id="run">Run suite</button>
+<pre id="out"></pre>
+<script>
+"use strict";
+const out = document.getElementById("out");
+const log = (s, cls) => { out.innerHTML += (cls?`<span class="${cls}">${s}</span>`:s) + "\n"; };
+let fails = 0;
+function check(name, ok, detail){
+  if(!ok) fails++;
+  log((ok?"  PASS  ":"  FAIL  ")+name+(detail?"   "+detail:""), ok?"pass":"fail");
+}
+
+/* ---- extract the shipping worklet --------------------------------------- */
+async function workletSource(){
+  const html = await (await fetch("./index.html?ts="+Date.now())).text();
+  const a = html.indexOf("const WORKLET = `");
+  if(a < 0) throw new Error("WORKLET literal not found in index.html");
+  const b = html.indexOf("`;", a);
+  if(b < 0) throw new Error("WORKLET literal not terminated");
+  return html.slice(a + "const WORKLET = `".length, b);
+}
+
+/* ---- the same compile step the page uses -------------------------------- */
+const LUTN = 1024;
+function compile(src){
+  const f = new Function("q", "with(Math){ return ("+src+"); }");
+  const lut = new Float32Array(LUTN);
+  for(let i=0;i<LUTN;i++){
+    const q = -1 + 2*i/(LUTN-1);
+    const v = f(q);
+    if(!isFinite(v)) throw new Error("M(q) not finite at q="+q.toFixed(2));
+    lut[i] = Math.max(20, v);
+  }
+  return lut;
+}
+
+/* ---- render ------------------------------------------------------------- */
+let SRC = null;
+async function render(opts){
+  const sr = 48000, secs = opts.secs || 1.2;
+  const ctx = new OfflineAudioContext(1, Math.round(sr*secs), sr);
+  const url = URL.createObjectURL(new Blob([SRC], {type:"application/javascript"}));
+  await ctx.audioWorklet.addModule(url);
+  URL.revokeObjectURL(url);
+  // Port messages are not reliably delivered before the first process() call in an
+  // OfflineAudioContext, so everything needed up front goes through processorOptions.
+  const po = Object.assign({
+    lut: compile(opts.eq || "1200"),
+    mu: opts.mu !== undefined ? opts.mu : 1e6,
+    tau: opts.tau !== undefined ? opts.tau : 2,
+    edge: 0, amp: opts.amp !== undefined ? opts.amp : 1,
+    auto: opts.auto !== undefined ? opts.auto : 0,
+    capF: opts.capF || 0,
+    thalf: opts.thalf || 0,
+    N: opts.N || 1,
+    spread: opts.spread || 0,
+    rein: opts.rein || 0,
+    noteOn: opts.freq || 110
+  }, opts.extra || {});
+  const msgs = [];
+  const node = new AudioWorkletNode(ctx, "physa",
+    {numberOfInputs:0, outputChannelCount:[1], processorOptions: po});
+  node.port.onmessage = e => msgs.push(e.data);
+  node.connect(ctx.destination);
+  const buf = await ctx.startRendering();
+  return {data: buf.getChannelData(0), sr, msgs};
+}
+
+/* ---- measurement -------------------------------------------------------- */
+/* Harmonic share above the fundamental, by DFT at exact harmonics of f0. */
+function harmonics(data, sr, f0, startSec, winSec){
+  const off = Math.round(startSec*sr), W = Math.round(winSec*sr);
+  if(off + W > data.length)
+    throw new Error(`window past end of buffer: ${off}+${W} > ${data.length}`);
+  let tot=0, above=0;
+  for(let k=1;k<=16;k++){
+    let re=0, im=0;
+    const w = 2*Math.PI*k*f0/sr;
+    for(let i=0;i<W;i++){
+      const win = 0.5-0.5*Math.cos(2*Math.PI*i/W);   // Hann, so the bins are clean
+      re += data[off+i]*win*Math.cos(w*i);
+      im += data[off+i]*win*Math.sin(w*i);
+    }
+    const e = re*re+im*im;
+    tot += e; if(k>1) above += e;
+  }
+  return tot>0 ? above/tot : 0;
+}
+function rms(data, sr, startSec, winSec){
+  const off = Math.round(startSec*sr), W = Math.round(winSec*sr);
+  if(off + W > data.length)
+    throw new Error(`window past end of buffer: ${off}+${W} > ${data.length}`);
+  let s=0; for(let i=0;i<W;i++) s += data[off+i]*data[off+i];
+  return Math.sqrt(s/W);
+}
+function peak(data){ let p=0; for(const v of data) p=Math.max(p,Math.abs(v)); return p; }
+
+/* The three loop measures, from the (v,i) cycle the worklet captures pre-gain.
+   Same code as the page. */
+function loopMeasures(V, I, PH){
+  const n=V.length; let memE=0, totE=0, harmE=0;
+  for(let k=1;k<=16;k++){
+    let a=0,b=0;
+    for(let j=0;j<n;j++){ const th=2*Math.PI*(PH?PH[j]:j/n);
+      a+=I[j]*Math.cos(k*th); b+=I[j]*Math.sin(k*th); }
+    a=2*a/n; b=2*b/n;
+    const e=a*a+b*b; totE+=e; if(k>1) harmE+=e;
+    if(k%2===1) memE+=a*a; else memE+=b*b;
+  }
+  let pk=0; for(let j=0;j<n;j++) pk=Math.max(pk,Math.abs(I[j]));
+  let zc=0,cnt=0;
+  for(let j=0;j<n;j++){
+    const j2=(j+1)%n;
+    if((V[j]<=0&&V[j2]>0)||(V[j]>=0&&V[j2]<0)){
+      const t=V[j]/(V[j]-V[j2]||1e-12);
+      zc+=Math.abs(I[j]+(I[j2]-I[j])*t); cnt++;
+    }
+  }
+  return {mem: totE>0?memE/totE:0, harm: totE>0?harmE/totE:0,
+          pinch:(cnt&&pk>0)?(zc/cnt)/pk:0};
+}
+const lastMsg = m => m.length ? m[m.length-1] : null;
+const pct = x => (x*100).toFixed(2)+"%";
+
+const HP = "100*((q+1)/2) + 8000*(1-(q+1)/2)";
+const PERIODIC = "1200 + 1000*sin(9*PI*q)";
+
+/* ---- suite -------------------------------------------------------------- */
+async function suite(){
+  out.innerHTML=""; fails=0;
+  SRC = await workletSource();
+  log("worklet extracted from index.html, "+SRC.length+" chars\n", "note");
+
+  /* 1. the memoryless control */
+  log("1. Constant M(q) = 1200 — no memory, so no harmonics", "hd");
+  {
+    const r = await render({eq:"1200", freq:110});
+    const h = harmonics(r.data, r.sr, 110, 0.4, 0.6);
+    const m = loopMeasures(lastMsg(r.msgs).lv, lastMsg(r.msgs).li, lastMsg(r.msgs).lph);
+    log("   harmonic "+pct(h)+"   loop: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  pinch "+pct(m.pinch));
+    check("a plain resistor produces no harmonics", h < 0.001, "got "+pct(h));
+    check("a plain resistor reads no memory", m.mem < 0.01, "got "+pct(m.mem));
+    check("a plain resistor pinches", m.pinch < 0.01, "got "+pct(m.pinch));
+  }
+
+  /* 2. keyfollow, with no keyfollow rule written anywhere */
+  log("\n2. Keyfollow — the state integrates current, so excursion goes as 1/f", "hd");
+  {
+    const rows=[];
+    for(const f of [55,110,220,440,880]){
+      const r = await render({eq:HP, freq:f});
+      rows.push([f, harmonics(r.data, r.sr, f, 0.4, 0.6)]);
+    }
+    log("   "+rows.map(([f,h])=>f+" Hz "+pct(h)).join("   "));
+    check("harmonic content falls monotonically with pitch",
+      rows.every((r,i)=> i===0 || r[1] < rows[i-1][1]));
+    check("55 Hz is dirty (>5%)", rows[0][1] > 0.05, pct(rows[0][1]));
+    check("880 Hz is nearly clean (<0.5%)", rows[4][1] < 0.005, pct(rows[4][1]));
+  }
+
+  /* 3. level as a physical timbre axis */
+  log("\n3. Level dependence — amplitude enters the state the same way", "hd");
+  {
+    const rows=[];
+    for(const a of [0.25,0.5,1,2]){
+      const r = await render({eq:HP, freq:110, amp:a});
+      rows.push([a, harmonics(r.data, r.sr, 110, 0.4, 0.6)]);
+    }
+    log("   "+rows.map(([a,h])=>"amp "+a+" "+pct(h)).join("   "));
+    check("harmonic content rises monotonically with amplitude",
+      rows.every((r,i)=> i===0 || r[1] > rows[i-1][1]));
+  }
+
+  /* 4. the mould: the false positive, on a dial */
+  log("\n4. Mould — a parallel capacitance on a memoryless element", "hd");
+  {
+    const r = await render({eq:"1200", freq:110, capF:1.4e-6});
+    const h = harmonics(r.data, r.sr, 110, 0.4, 0.6);
+    const m = loopMeasures(lastMsg(r.msgs).lv, lastMsg(r.msgs).li, lastMsg(r.msgs).lph);
+    log("   harmonic "+pct(h)+"   loop: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  pinch "+pct(m.pinch));
+    check("capacitance reads as memory — the false positive", m.mem > 0.5, pct(m.mem));
+    check("and produces nothing above the fundamental", m.harm < 0.01, pct(m.harm));
+    check("and the loop stops passing through the origin", m.pinch > 0.5, pct(m.pinch));
+    log("   The three together are the Schmidt et al. (2025) signature: an elliptical loop,", "note");
+    log("   no harmonics, and a 'memory' reading that is capacitance rather than memristance.", "note");
+  }
+  {
+    // the honest element, for contrast, at the same settings
+    const r = await render({eq:HP, freq:110});
+    const m = loopMeasures(lastMsg(r.msgs).lv, lastMsg(r.msgs).li, lastMsg(r.msgs).lph);
+    log("   memristor for contrast: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  pinch "+pct(m.pinch));
+    check("the memristor pinches where the RC does not", m.pinch < 0.02, pct(m.pinch));
+    check("and does produce harmonics", m.harm > 0.01, pct(m.harm));
+  }
+  {
+    // The capacitive branch is the quadrature part of the fundamental, so isolate
+    // that rather than the total: the two branches add in quadrature, and the total
+    // therefore grows far more slowly than the capacitive part does.
+    const quad = m => {
+      let a=0,b=0; const n=m.lv.length;
+      for(let j=0;j<n;j++){ const th=2*Math.PI*m.lph[j];
+        a+=m.li[j]*Math.cos(th); b+=m.li[j]*Math.sin(th); }
+      return Math.abs(a/b);            // quadrature over in-phase = omega*C*M
+    };
+    const rows=[];
+    for(const f of [110,220,440,880]){
+      const r = await render({eq:"1200", freq:f, capF:1.4e-7, amp:0.3});
+      rows.push([f, quad(lastMsg(r.msgs))]);
+    }
+    log("   quadrature/in-phase   "+rows.map(([f,v])=>f+" Hz "+v.toFixed(3)).join("   "));
+    const ratio = rows[3][1]/rows[0][1];
+    check("the capacitive branch grows in proportion to pitch", Math.abs(ratio-8) < 0.15,
+      (rows[3][0]/rows[0][0])+"x pitch gave "+ratio.toFixed(2)+"x quadrature");
+  }
+
+  /* 5. senescence */
+  log("\n5. Senescence — the curve is a state variable", "hd");
+  {
+    const r = await render({eq:PERIODIC, freq:110, thalf:3, secs:6, tau:0});
+    const early = harmonics(r.data, r.sr, 110, 0.3, 0.6);
+    const late  = harmonics(r.data, r.sr, 110, 5.0, 0.9);
+    const w = lastMsg(r.msgs).wmean, wmax = Math.max(...lastMsg(r.msgs).wear);
+    log("   harmonic at 0.3 s "+pct(early)+" -> at 5.0 s "+pct(late));
+    log("   substrate mean wear "+pct(w)+", peak wear "+pct(wmax));
+    check("the substrate wears", wmax > 0.3, pct(wmax));
+    check("wear is local, not global", w < wmax*0.9, "mean "+pct(w)+" vs peak "+pct(wmax));
+    check("a worn element loses harmonic content", late < early,
+      pct(early)+" -> "+pct(late));
+  }
+  {
+    // The quoted half-life is nominal: it is calibrated for the default curve and
+    // drive, and a wider charge sweep spreads the wear and slows it. Check it holds
+    // at the point it is calibrated for, within a factor of two.
+    const T = 4;
+    const r = await render({eq:HP, freq:110, thalf:T, secs:T, tau:0});
+    const wmax = Math.max(...lastMsg(r.msgs).wear);
+    log("   half-life "+T+" s at the default curve and drive: peak wear after "+T+" s is "+pct(wmax));
+    check("the nominal half-life is right within a factor of two at the default",
+      wmax > 0.25 && wmax < 0.75, pct(wmax)+" against a nominal 50%");
+  }
+  {
+    const r = await render({eq:PERIODIC, freq:110, thalf:0, secs:6, tau:0});
+    const early = harmonics(r.data, r.sr, 110, 0.3, 0.6);
+    const late  = harmonics(r.data, r.sr, 110, 5.0, 0.9);
+    check("with senescence off the timbre is stable", Math.abs(late-early) < 0.01,
+      pct(early)+" -> "+pct(late));
+    check("and nothing wears", Math.max(...lastMsg(r.msgs).wear) === 0);
+  }
+  {
+    // blending a constant curve toward its own mean must be a no-op
+    const a = await render({eq:"1200", freq:110, thalf:1, secs:4});
+    const b = await render({eq:"1200", freq:110, thalf:0, secs:4});
+    let diff=0; for(let i=0;i<a.data.length;i++) diff=Math.max(diff,Math.abs(a.data[i]-b.data[i]));
+    check("wear on a constant curve changes nothing", diff < 1e-9, "max diff "+diff.toExponential(1));
+  }
+
+  /* 6. colony */
+  log("\n6. Colony — Tero's tube law over a shared substrate", "hd");
+  {
+    const r = await render({eq:HP, freq:110, N:6, spread:0.75, rein:0.7, secs:2.5});
+    const m = lastMsg(r.msgs);
+    const ds = Array.from(m.ds), qs = Array.from(m.qs);
+    log("   tube thickness D = ["+ds.map(d=>d.toFixed(3)).join(", ")+"]");
+    log("   charge      q = ["+qs.map(q=>q.toFixed(3)).join(", ")+"]");
+    check("six elements are reported", ds.length===6);
+    check("spread puts them at different charges",
+      new Set(qs.map(q=>q.toFixed(3))).size > 1);
+    check("reinforcement differentiates the tubes",
+      Math.max(...ds) - Math.min(...ds) > 0.05,
+      "spread "+(Math.max(...ds)-Math.min(...ds)).toFixed(3));
+    check("every tube stays bounded", ds.every(d=>d>0 && d<5 && isFinite(d)));
+    check("every charge stays in the domain", qs.every(q=>q>=-1.0001 && q<=1.0001));
+    check("output is finite", r.data.every(v=>isFinite(v)));
+  }
+  {
+    const r = await render({eq:HP, freq:110, N:6, spread:0.75, rein:0, secs:2.5});
+    const ds = Array.from(lastMsg(r.msgs).ds);
+    check("with reinforcement off the tubes stay fixed at 1",
+      ds.every(d=>Math.abs(d-1)<1e-9));
+  }
+
+  /* 7. headroom */
+  log("\n7. Headroom", "hd");
+  {
+    const cases = [
+      ["HP, amp 2", {eq:HP, amp:2}],
+      ["periodic, amp 2", {eq:PERIODIC, amp:2}],
+      ["hard switch, amp 2", {eq:"q < 0 ? 7000 : 400", amp:2}],
+      ["colony 8 + reinforcement, amp 2", {eq:HP, amp:2, N:8, spread:1, rein:1}],
+      ["mould 20 uF, amp 2", {eq:HP, amp:2, capF:2e-5}]
+    ];
+    // The soft limiter is 0.9 + 0.1*tanh(...), which saturates at exactly 1.0, so
+    // 1.0 is the bound and not a failure. What matters is that the sustained level
+    // sits at the AGC target rather than riding the ceiling.
+    for(const [name, o] of cases){
+      const r = await render(Object.assign({freq:110, auto:1, secs:2.5}, o));
+      const p = peak(r.data), sr_ = rms(r.data, r.sr, 1.5, 0.9);
+      log("   "+name.padEnd(34)+" peak "+p.toFixed(3)+"   sustained rms "+sr_.toFixed(3));
+      check(name+": output never exceeds 1.0", p <= 1.0, p.toFixed(3));
+      check(name+": settles to the 0.25 AGC target", Math.abs(sr_-0.25) < 0.03, sr_.toFixed(3));
+    }
+  }
+
+  log("\n"+(fails===0 ? "All checks passed." : fails+" check(s) failed."),
+      fails===0 ? "pass" : "fail");
+}
+
+document.getElementById("run").addEventListener("click", ()=>{
+  suite().catch(e=>{ log("\nERROR: "+e.message+"\n"+e.stack, "fail"); });
+});
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Anexacta is a collection of equation-first browser synthesizers sharing one mathematical language.">
+  <meta name="description" content="Anexacta is a collection of four equation-first browser synthesizers sharing one mathematical language.">
   <title>Anexacta — equation-first synthesizers</title>
   <style>
     :root {
@@ -241,6 +241,15 @@
       margin-left: 4%;
     }
 
+    article:nth-child(4) {
+      --edge: hsl(38 52% 30% / .38);
+      --surface: linear-gradient(101deg, hsl(45 30% 84% / .9), hsl(165 26% 86% / .76) 54%, hsl(285 26% 86% / .78));
+      --radius: 2.4rem 4.2rem 3.2rem 2.1rem / 4.6rem 2.2rem 4rem 2.9rem;
+      --tilt: .22deg;
+      width: 86%;
+      margin-left: 9%;
+    }
+
     .identity {
       flex: 0 0 clamp(10rem, 23vw, 15rem);
     }
@@ -308,7 +317,8 @@
       .members { border-radius: 2rem 3.5rem 2.6rem 3rem; }
       article,
       article:nth-child(2),
-      article:nth-child(3) {
+      article:nth-child(3),
+      article:nth-child(4) {
         align-self: stretch;
         width: 100%;
         margin-left: 0;
@@ -334,14 +344,14 @@
         <p class="kicker">equation-first synthesis</p>
         <h1>Anexacta</h1>
       </div>
-      <p class="intro">Three browser instruments share one mathematical language for ratios, envelopes, time, tuning, and keyfollow. Each applies it to a different way of making a spectrum.</p>
+      <p class="intro">Four browser instruments share one mathematical language for ratios, envelopes, time, tuning, and keyfollow. Three apply it to a different way of making a spectrum; the fourth applies it to an element that remembers what has passed through it.</p>
     </header>
 
     <aside class="language" aria-label="Shared mathematical language">
       <span class="language-label">shared mathematical language</span>
-      <strong>One grammar, three signal paths.</strong>
+      <strong>One grammar, four signal paths.</strong>
       <p>Named definitions use the same variables and functions across the collection. The sound changes according to where those definitions enter the signal path.</p>
-      <code class="syntax">definition(n, f₀, t) → additive sum · resonator bank · modulation graph</code>
+      <code class="syntax">definition(n, f₀, t) → additive sum · resonator bank · modulation graph · memristive element</code>
     </aside>
 
     <section class="members" aria-label="Anexacta instruments">
@@ -368,6 +378,14 @@
         </div>
         <p>Replace fixed operator charts with named equations, arbitrary modulation graphs, feedback, drift, and non-integer ratios.</p>
         <a class="launch" href="./moire/">Open Moire →</a>
+      </article>
+      <article>
+        <div class="identity">
+          <span class="mode">memristive</span>
+          <h2>Physa</h2>
+        </div>
+        <p>Write the memristance curve of a charge-controlled memristor and play it. The element keeps the history of everything driven through it, wears as you play, and distorts low notes harder than high ones with no keyfollow rule written anywhere.</p>
+        <a class="launch" href="./physa/">Open Physa →</a>
       </article>
     </section>
 
