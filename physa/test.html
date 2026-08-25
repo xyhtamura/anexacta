@@ -77,6 +77,8 @@ async function render(opts){
     N: opts.N || 1,
     spread: opts.spread || 0,
     rein: opts.rein || 0,
+    glide: opts.glide || 0,
+    vel: opts.vel !== undefined ? opts.vel : 1,
     noteOn: opts.freq || 110
   }, opts.extra || {});
   const msgs = [];
@@ -114,6 +116,24 @@ function rms(data, sr, startSec, winSec){
     throw new Error(`window past end of buffer: ${off}+${W} > ${data.length}`);
   let s=0; for(let i=0;i<W;i++) s += data[off+i]*data[off+i];
   return Math.sqrt(s/W);
+}
+/* Fundamental by parabolic interpolation over a coarse DFT scan, so a glide that
+   failed to settle shows up as the wrong pitch rather than as nothing. */
+function fundamental(data, sr, guess, startSec, winSec){
+  const off=Math.round(startSec*sr), W=Math.round(winSec*sr);
+  if(off + W > data.length)
+    throw new Error(`window past end of buffer: ${off}+${W} > ${data.length}`);
+  let best=0, bf=guess;
+  for(let f=guess*0.7; f<=guess*1.4; f+=guess*0.002){
+    let re=0, im=0; const w=2*Math.PI*f/sr;
+    for(let i=0;i<W;i+=4){
+      const win=0.5-0.5*Math.cos(2*Math.PI*i/W);
+      re+=data[off+i]*win*Math.cos(w*i); im+=data[off+i]*win*Math.sin(w*i);
+    }
+    const e=re*re+im*im;
+    if(e>best){ best=e; bf=f; }
+  }
+  return bf;
 }
 function peak(data){ let p=0; for(const v of data) p=Math.max(p,Math.abs(v)); return p; }
 
@@ -321,6 +341,37 @@ async function suite(){
       check(name+": output never exceeds 1.0", p <= 1.0, p.toFixed(3));
       check(name+": settles to the 0.25 AGC target", Math.abs(sr_-0.25) < 0.03, sr_.toFixed(3));
     }
+  }
+
+  /* 8. performance inputs */
+  log("\n8. Velocity and glide", "hd");
+  {
+    // Velocity multiplies the drive, so it must enter the state exactly the way
+    // amplitude does: half velocity at full amplitude has to equal half amplitude.
+    const a = await render({eq:HP, freq:110, amp:1, vel:0.5});
+    const b = await render({eq:HP, freq:110, amp:0.5, vel:1});
+    const ha = harmonics(a.data, a.sr, 110, 0.4, 0.6), hb = harmonics(b.data, b.sr, 110, 0.4, 0.6);
+    log("   velocity 0.5 -> "+pct(ha)+"    amplitude 0.5 -> "+pct(hb));
+    check("velocity enters the drive the same way amplitude does",
+      Math.abs(ha-hb) < 1e-6, pct(ha)+" vs "+pct(hb));
+    let same=true;
+    for(let i=0;i<a.data.length;i++) if(a.data[i]!==b.data[i]){ same=false; break; }
+    check("and produces a bit-for-bit identical render", same);
+  }
+  {
+    // Glide is between notes, not out of silence. A note struck from rest with
+    // glide set must still start at its own pitch, or every phrase would open on
+    // a portamento from whatever was played last.
+    const r = await render({eq:HP, freq:440, glide:0.25, secs:1.2});
+    const f = fundamental(r.data, r.sr, 440, 0.05, 0.25);
+    log("   first note at 440 Hz with 250 ms glide sounds at "+f.toFixed(1)+" Hz");
+    check("a note out of silence does not glide", Math.abs(f-440) < 6, f.toFixed(1)+" Hz");
+  }
+  {
+    const r = await render({eq:HP, freq:220, glide:0.25, secs:1.2});
+    const f = fundamental(r.data, r.sr, 220, 0.6, 0.5);
+    check("glide leaves the steady-state pitch alone", Math.abs(f-220) < 4, f.toFixed(1)+" Hz");
+    check("and the output stays finite", r.data.every(v=>isFinite(v)));
   }
 
   log("\n"+(fails===0 ? "All checks passed." : fails+" check(s) failed."),

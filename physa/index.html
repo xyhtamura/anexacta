@@ -13,29 +13,33 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <style>
 :root{
-  /* a bronze plate left somewhere damp, with a culture on it.
-     oxide interference runs amber -> verdigris -> violet on its own, which is
-     the fallback hue triad (45 / 165 / 285) without having to impose it.
-     the chrome yellow is Physarum's own colour and is reserved for the
-     memoryless branch: the mould dial, and the wear it leaves behind. */
-  --plate:hsl(285 24% 9%); --plate2:hsl(272 21% 13%); --plate-d:hsl(291 32% 5%);
-  --membrane:hsl(56 15% 83%); --membrane2:hsl(47 13% 72%); --membrane-d:hsl(42 12% 60%);
-  --ink:hsl(285 32% 12%); --dim:hsl(281 14% 32%); --faint:hsl(276 11% 45%);
-  --pale:hsl(56 22% 88%);
+  /* Biometallic. A bronze plate that did not stop being tissue: oxide interference
+     runs amber -> verdigris -> violet unaided, which lands the 45/165/285 fallback
+     triad without imposing it, and a flesh hue at 340 sits in the seam where the
+     metal turns soft. Physarum's own chrome yellow is reserved for the memoryless
+     branch: the mould dial, and the wear it leaves behind. */
+  --plate:hsl(287 26% 8%); --plate2:hsl(274 22% 12%); --plate-d:hsl(292 34% 4%);
 
-  --bronze:hsl(38 44% 44%); --bronze-d:hsl(33 46% 21%); --bronze-hi:hsl(46 64% 68%);
-  --verd:hsl(165 49% 40%); --verd-hi:hsl(165 60% 63%); --verd-d:hsl(168 45% 19%);
-  --iris:hsl(285 54% 63%); --iris-d:hsl(285 44% 34%);
-  --slime:hsl(52 89% 57%); --slime-d:hsl(46 72% 36%);
-  --hot:hsl(27 79% 56%);
-  --bad:hsl(352 56% 54%);
+  --tissue:hsl(28 16% 81%); --tissue2:hsl(20 14% 71%); --tissue-d:hsl(14 13% 59%);
+  --tissue-hi:hsl(36 26% 90%);
+  --flesh:hsl(340 24% 44%); --flesh-d:hsl(342 30% 24%); --flesh-hi:hsl(346 34% 66%);
 
-  --edge:hsl(285 26% 24%); --edge2:hsl(291 40% 6%);
+  --ink:hsl(290 30% 12%); --dim:hsl(285 14% 31%); --faint:hsl(280 11% 44%);
+  --pale:hsl(40 20% 86%);
+
+  --bronze:hsl(38 44% 44%); --bronze-d:hsl(31 46% 19%); --bronze-hi:hsl(46 66% 70%);
+  --verd:hsl(165 49% 40%); --verd-hi:hsl(165 62% 64%); --verd-d:hsl(168 46% 17%);
+  --iris:hsl(285 54% 63%);
+  --slime:hsl(52 89% 57%); --slime-d:hsl(46 74% 34%);
+  --hot:hsl(27 80% 57%);
+  --bad:hsl(352 58% 46%);
+
+  --edge:hsl(287 26% 22%); --edge2:hsl(292 42% 5%);
   --disp:"Averia Gruesa Libre","Averia Libre",Georgia,serif;
   --ui:"Averia Sans Libre",system-ui,sans-serif;
   --mono:"Space Mono",ui-monospace,Consolas,monospace;
 
-  --age:0;   /* 0..1, driven from JS: how far the substrate has worn */
+  --age:0;
 }
 *{box-sizing:border-box}
 html{min-height:100%}
@@ -44,267 +48,397 @@ body{
   color:var(--pale);
   font:13px/1.5 var(--mono);
   background:
-    radial-gradient(900px 620px at 12% -8%, hsl(165 60% 34% / .17), transparent 58%),
-    radial-gradient(760px 520px at 88% 4%, hsl(285 58% 46% / .19), transparent 54%),
-    radial-gradient(700px 720px at 64% 108%, hsl(45 70% 46% / .13), transparent 62%),
+    radial-gradient(920px 640px at 10% -8%, hsl(165 60% 32% / .16), transparent 58%),
+    radial-gradient(780px 540px at 88% 2%, hsl(285 58% 44% / .18), transparent 54%),
+    radial-gradient(620px 520px at 52% 46%, hsl(340 44% 34% / .14), transparent 62%),
+    radial-gradient(700px 720px at 66% 108%, hsl(45 68% 44% / .12), transparent 62%),
     linear-gradient(163deg, var(--plate2) 0%, var(--plate) 52%, var(--plate-d) 100%);
   background-attachment:fixed;
 }
 /* corrosion grain over the whole plate */
 body::before{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
-  opacity:.16; mix-blend-mode:overlay;
+  opacity:.17; mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/></svg>");
 }
-/* the culture: creeps in as the substrate wears, driven by --age */
+/* the culture, creeping in as the substrate wears. Opacity only, no motion. */
 body::after{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
-  opacity:calc(var(--age) * .55); mix-blend-mode:screen;
-  transition:opacity .8s linear;
+  opacity:calc(var(--age) * .5); mix-blend-mode:screen;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='620' height='620'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 .84  0 0 0 0 .78  0 0 0 0 .18  0 0 0 -1.4 .78'/></filter><rect width='100%25' height='100%25' filter='url(%23b)'/></svg>");
   background-size:cover;
 }
 body > *{position:relative; z-index:1}
+svg.defs{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------- the skin ------------------------------------------------------
+   Every shell paints its surface on a .skin layer behind its content, and the
+   tear filter runs on that layer alone. Displacing a backdrop gives a ragged,
+   wet outline; displacing the shell itself would drag the type and the controls
+   with it. Content sits above at z-index 1. */
+.skin{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  border-radius:26px 34px 18px 30px / 30px 18px 32px 22px;
+  background:
+    radial-gradient(120% 90% at 22% 8%, hsl(36 30% 92% / .95), transparent 62%),
+    radial-gradient(90% 70% at 88% 96%, hsl(340 26% 62% / .3), transparent 60%),
+    linear-gradient(168deg, var(--tissue), var(--tissue2) 72%, var(--tissue-d));
+  box-shadow:
+    inset 0 1px 0 hsl(36 50% 97% / .8),
+    inset 0 -18px 30px hsl(14 24% 40% / .2),
+    0 16px 30px -18px hsl(292 60% 3% / .95);
+  filter:url(#tear);
+}
+.cell > .skin, .deck > .skin{
+  background:
+    radial-gradient(120% 90% at 20% 6%, hsl(165 44% 30% / .3), transparent 60%),
+    radial-gradient(80% 70% at 86% 94%, hsl(340 40% 34% / .28), transparent 62%),
+    linear-gradient(158deg, hsl(287 26% 10%), hsl(200 22% 7%));
+  box-shadow:
+    inset 0 0 0 1px hsl(165 40% 44% / .16),
+    inset 0 3px 16px hsl(292 70% 2% / .9),
+    0 18px 32px -22px #000;
+  filter:url(#tear2);
+}
+.organism > *:not(.skin), .cell > *:not(.skin), .deck > *:not(.skin){position:relative; z-index:1}
 
 /* ---------- header ---------- */
 header{
-  display:flex; align-items:stretch; gap:clamp(12px,2.4vw,26px); flex-wrap:wrap;
-  padding:16px clamp(14px,2.6vw,26px) 18px;
+  display:flex; align-items:stretch; gap:clamp(12px,2.2vw,24px); flex-wrap:wrap;
+  padding:15px clamp(14px,2.6vw,26px) 17px;
   border-bottom:1px solid var(--edge);
-  background:linear-gradient(178deg, hsl(285 22% 15% / .82), hsl(288 30% 8% / .74));
-  box-shadow:0 16px 34px -28px #000;
+  background:linear-gradient(178deg, hsl(287 24% 14% / .84), hsl(290 32% 7% / .76));
 }
 .nameplate{
   display:flex; flex-direction:column; justify-content:center;
-  padding:11px 20px 13px;
-  border:1px solid hsl(38 40% 40% / .5);
-  border-radius:20px 30px 16px 26px / 24px 16px 28px 18px;
-  background:linear-gradient(165deg, hsl(38 30% 30%), hsl(33 34% 16%) 62%, hsl(285 26% 12%));
-  box-shadow:inset 0 1px 0 hsl(46 60% 70% / .38), inset 0 -10px 20px hsl(291 50% 4% / .5),
+  padding:10px 20px 12px;
+  border:1px solid hsl(38 40% 38% / .55);
+  border-radius:22px 32px 15px 27px / 26px 15px 30px 18px;
+  background:
+    radial-gradient(90% 120% at 26% 10%, hsl(46 44% 52% / .5), transparent 66%),
+    linear-gradient(166deg, hsl(38 32% 30%), hsl(340 20% 18%) 58%, hsl(290 26% 11%));
+  box-shadow:inset 0 1px 0 hsl(46 62% 74% / .42), inset 0 -12px 22px hsl(292 50% 3% / .5),
              0 10px 22px -16px #000;
 }
 .brand{
   font:400 30px/1 var(--disp); letter-spacing:.05em; color:var(--bronze-hi);
-  text-shadow:0 1px 0 hsl(33 40% 12%), 0 0 18px hsl(45 70% 50% / .22);
+  text-shadow:0 1px 0 hsl(31 40% 10%), 0 0 20px hsl(45 70% 50% / .25);
 }
-.brand span{color:var(--slime); text-shadow:0 0 14px hsl(52 90% 55% / .5)}
-.tag{margin-top:5px; font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:hsl(46 30% 66%)}
+.brand span{color:var(--slime); text-shadow:0 0 15px hsl(52 90% 55% / .55)}
+.tag{margin-top:5px; font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:hsl(40 26% 66%)}
+
 .defn{
-  flex:1 1 30rem; min-width:0;
+  flex:1 1 28rem; min-width:0;
   display:flex; flex-direction:column; justify-content:center; gap:5px;
-  padding:12px 18px 13px;
-  border:1px solid hsl(165 40% 34% / .34);
-  border-radius:16px 28px 20px 24px / 24px 18px 26px 16px;
-  background:linear-gradient(150deg, hsl(200 22% 9% / .9), hsl(285 26% 7% / .86));
-  box-shadow:inset 0 2px 12px hsl(291 60% 3% / .8), inset 0 0 0 1px hsl(165 40% 44% / .12);
+  padding:11px 17px 12px;
+  border:1px solid hsl(165 40% 32% / .34);
+  border-radius:15px 27px 19px 24px / 23px 17px 26px 15px;
+  background:linear-gradient(150deg, hsl(200 22% 8% / .9), hsl(287 26% 6% / .86));
+  box-shadow:inset 0 2px 12px hsl(292 60% 2% / .8), inset 0 0 0 1px hsl(165 40% 44% / .12);
   overflow-x:auto;
 }
 .defn .row{display:flex; align-items:baseline; gap:10px; white-space:nowrap}
 .defn .who{
   flex:0 0 5.2rem; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--verd-hi); opacity:.8;
+  color:var(--verd-hi); opacity:.82;
 }
 .defn .tex{color:var(--pale); font-size:13px}
-.hactions{display:flex; flex-direction:column; justify-content:center; gap:8px; min-width:11rem}
+
+.hactions{display:flex; flex-direction:column; justify-content:center; gap:9px; min-width:13rem}
+.chips{display:flex; flex-wrap:wrap; gap:5px}
+.chip{
+  padding:4px 9px 5px;
+  border:1px solid hsl(38 30% 34% / .6);
+  border-radius:9px 12px 8px 11px;
+  background:linear-gradient(172deg, hsl(290 20% 15%), hsl(292 30% 9%));
+  color:hsl(40 18% 62%);
+  font:400 10px/1.3 var(--mono); letter-spacing:.05em;
+  max-width:15rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.chip.on{
+  color:hsl(52 70% 76%); border-color:hsl(46 54% 40%);
+  background:linear-gradient(172deg, hsl(44 34% 24%), hsl(38 40% 14%));
+  box-shadow:0 0 12px hsl(52 80% 50% / .22);
+}
 
 /* ---------- shell ---------- */
 main{
-  display:grid; grid-template-columns:clamp(290px,25vw,340px) minmax(0,1fr);
+  display:grid; grid-template-columns:clamp(300px,25vw,350px) minmax(0,1fr);
   gap:clamp(14px,1.8vw,22px);
   padding:clamp(14px,2.2vw,24px) clamp(14px,2.6vw,26px) 8px;
   align-items:start;
 }
-.side{display:flex; flex-direction:column; gap:15px}
 
-/* organs: membrane compartments on the plate, none the same shape */
-.organ{
-  padding:14px 15px 15px;
-  border:1px solid hsl(42 22% 46% / .5);
-  color:var(--ink);
-  background:linear-gradient(168deg, var(--membrane), var(--membrane2) 74%, var(--membrane-d));
-  box-shadow:inset 0 1px 0 hsl(56 44% 97% / .78),
-             inset 0 -16px 28px hsl(38 30% 38% / .16),
-             0 14px 28px -18px hsl(291 60% 3% / .95);
+/* ---------- the organism: one body, chambers inside it ---------- */
+.organism{position:relative; padding:4px 0}
+.veins{
+  position:absolute; z-index:0; top:10px; bottom:10px; left:-13px;
+  width:30px; height:calc(100% - 20px); overflow:visible; pointer-events:none;
+  opacity:.72;
 }
-.organ:nth-of-type(1){border-radius:26px 34px 16px 28px / 30px 18px 32px 20px}
-.organ:nth-of-type(2){border-radius:18px 26px 32px 20px / 22px 30px 18px 28px; transform:rotate(-.18deg)}
-.organ:nth-of-type(3){border-radius:32px 18px 26px 34px / 20px 28px 22px 30px; transform:rotate(.14deg)}
-.organ:nth-of-type(4){border-radius:22px 30px 20px 26px / 28px 20px 30px 22px}
-.organ:nth-of-type(5){border-radius:30px 20px 28px 18px / 18px 30px 20px 28px; transform:rotate(-.1deg)}
+.chamber{
+  position:relative; z-index:1;
+  padding:15px 17px 16px;
+  color:var(--ink);
+}
+.chamber + .chamber{
+  border-top:1.5px solid;
+  border-image:linear-gradient(90deg, hsl(31 40% 30% / .1), hsl(340 26% 38% / .6) 22%, hsl(165 40% 30% / .5) 74%, hsl(31 40% 30% / .1)) 1;
+}
 
 h2{
-  margin:0 0 10px; font:700 10px/1.2 var(--ui);
-  letter-spacing:.19em; text-transform:uppercase; color:hsl(285 20% 28%);
+  margin:0 0 11px; font:700 10px/1.2 var(--ui);
+  letter-spacing:.19em; text-transform:uppercase; color:hsl(290 22% 26%);
   display:flex; align-items:center; gap:9px;
 }
 h2::after{
   content:""; flex:1; height:2px; border-radius:2px;
-  background:linear-gradient(90deg, hsl(165 45% 36% / .5), hsl(285 40% 40% / .16), transparent);
+  background:linear-gradient(90deg, hsl(340 30% 40% / .5), hsl(165 45% 34% / .3), transparent);
 }
-label{display:block; margin:0 0 11px}
-label:last-child{margin-bottom:0}
-label .row{display:flex; justify-content:space-between; gap:8px; margin-bottom:4px}
-label .row span:first-child{font:700 11px/1.3 var(--ui); letter-spacing:.05em; color:var(--ink)}
-.val{color:hsl(168 44% 24%); font-size:11px}
+.cell h2, .deck h2{color:hsl(40 22% 68%)}
+.cell h2::after, .deck h2::after{background:linear-gradient(90deg, hsl(165 45% 42% / .45), hsl(340 34% 46% / .22), transparent)}
 
-/* fields */
-input[type=text],select,textarea{
-  width:100%; font:inherit; color:var(--ink);
-  background:linear-gradient(180deg, hsl(56 26% 91%), hsl(48 18% 81%));
-  border:1px solid hsl(42 20% 46% / .8); border-radius:9px 12px 9px 12px;
-  padding:7px 9px;
-  box-shadow:inset 0 2px 5px hsl(38 24% 40% / .22), 0 1px 0 hsl(56 40% 96% / .5);
+/* ---------- the equation, as a card in a slot ---------- */
+.slot{
+  position:relative;
+  padding:7px 8px 8px;
+  border-radius:8px 11px 8px 11px;
+  background:linear-gradient(180deg, hsl(14 18% 44% / .5), hsl(292 24% 16% / .5));
+  box-shadow:inset 0 3px 7px hsl(292 50% 4% / .6), 0 1px 0 hsl(36 40% 94% / .5);
 }
-select{
-  -webkit-appearance:none; appearance:none; cursor:pointer; padding-right:28px;
+.slot::after{
+  content:""; position:absolute; left:9px; right:9px; top:2px; height:2px;
+  border-radius:2px; background:hsl(292 40% 6% / .7);
+}
+input[type=text]{
+  width:100%; font:12px/1.4 var(--mono); color:var(--ink);
+  background:linear-gradient(180deg, hsl(38 24% 90%), hsl(28 16% 80%));
+  border:1px solid hsl(31 24% 42% / .8); border-radius:5px 7px 5px 7px;
+  padding:7px 9px;
+  box-shadow:0 2px 4px hsl(292 40% 6% / .35), inset 0 1px 0 hsl(40 50% 96% / .7);
+}
+input[type=text]:focus{outline:none; border-color:var(--verd); box-shadow:0 0 0 2px hsl(165 50% 42% / .35)}
+#eqErr{color:hsl(352 66% 30%); min-height:1.2em; font-size:11px; margin:6px 0 9px}
+
+.pick select{
+  width:100%; font:inherit; color:var(--ink); cursor:pointer;
+  -webkit-appearance:none; appearance:none; padding:7px 28px 7px 9px;
+  border:1px solid hsl(31 22% 44% / .8); border-radius:9px 13px 8px 12px;
   background:
     linear-gradient(135deg,transparent 0 44%,var(--verd) 45% 55%,transparent 56%) right 15px top 53%/7px 7px no-repeat,
     linear-gradient(225deg,transparent 0 44%,var(--verd) 45% 55%,transparent 56%) right 10px top 53%/7px 7px no-repeat,
-    linear-gradient(180deg, hsl(56 26% 91%), hsl(48 18% 81%));
+    linear-gradient(180deg, hsl(38 24% 89%), hsl(26 16% 78%));
+  box-shadow:inset 0 2px 5px hsl(14 24% 40% / .22);
 }
-input[type=text]:focus,select:focus{outline:none; border-color:var(--verd); box-shadow:inset 0 2px 5px hsl(38 24% 40% / .22), 0 0 0 2px hsl(165 50% 42% / .3)}
-#eq{font-size:12px; font-family:var(--mono)}
-#eqErr{color:hsl(352 62% 34%); min-height:1.25em; font-size:11px; margin:5px 0 9px}
+.pick select:focus{outline:none; border-color:var(--verd); box-shadow:0 0 0 2px hsl(165 50% 42% / .3)}
 
-/* buttons: bronze studs */
+/* ---------- dials ----------------------------------------------------------
+   The range input stays under the knob: still focusable, still arrow-key
+   operable, still carries the accessible name. Clipped rather than hidden. */
+.dials{display:flex; flex-wrap:wrap; gap:14px 16px; align-items:flex-start}
+.dial, .rocker{
+  position:relative;
+  display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto;
+  column-gap:9px; align-items:center;
+  min-width:8.2rem; margin:0;
+}
+.dial input[type=range], .rocker input[type=checkbox]{
+  position:absolute; width:1px; height:1px; margin:0; padding:0;
+  clip:rect(0 0 0 0); clip-path:inset(50%); overflow:hidden; white-space:nowrap;
+}
+.knob{
+  grid-row:1 / 3; width:42px; height:42px; border-radius:50%;
+  cursor:ns-resize; touch-action:none;
+  display:block; position:relative;
+  background:
+    radial-gradient(circle at 34% 26%, hsl(36 40% 88% / .85), transparent 44%),
+    radial-gradient(circle at 62% 78%, hsl(340 36% 40% / .7), transparent 56%),
+    conic-gradient(from 210deg, hsl(38 40% 52%), hsl(31 34% 26%) 28%, hsl(46 56% 62%) 52%, hsl(31 36% 22%) 76%, hsl(38 40% 52%));
+  border:1px solid hsl(31 44% 12%);
+  box-shadow:
+    inset 0 1px 2px hsl(46 70% 88% / .5),
+    inset 0 -5px 10px hsl(292 50% 4% / .55),
+    0 3px 7px -3px #000;
+}
+.knob::after{
+  content:""; position:absolute; inset:7px; border-radius:50%;
+  background:
+    radial-gradient(circle at 36% 30%, hsl(346 40% 62% / .9), hsl(340 26% 30%) 58%, hsl(292 30% 12%));
+  box-shadow:inset 0 2px 5px hsl(292 60% 3% / .7), inset 0 -1px 0 hsl(346 40% 60% / .35);
+}
+.knob i{
+  position:absolute; inset:0; border-radius:50%;
+  transform:rotate(var(--deg,0deg)); z-index:2;
+}
+.knob i::before{
+  content:""; position:absolute; left:50%; top:5px;
+  width:2.5px; height:12px; margin-left:-1.25px; border-radius:2px;
+  background:linear-gradient(180deg, var(--slime), hsl(46 70% 44%));
+  box-shadow:0 0 7px hsl(52 88% 56% / .6);
+}
+.dial.sm .knob{width:34px; height:34px}
+.dial.sm .knob i::before{height:9px; top:4px}
+.dial input:focus-visible ~ .knob{outline:2px solid var(--verd-hi); outline-offset:3px}
+.mould ~ .knob i::before{background:linear-gradient(180deg, hsl(56 95% 78%), var(--slime-d))}
+.mould ~ .knob::after{background:radial-gradient(circle at 36% 30%, hsl(56 80% 66% / .8), hsl(46 50% 28%) 58%, hsl(292 30% 12%))}
+
+.dl{grid-column:2; align-self:end; font:700 11px/1.25 var(--ui); letter-spacing:.045em; color:var(--ink)}
+.dv{grid-column:2; align-self:start; font:400 10.5px/1.3 var(--mono); color:hsl(168 46% 24%)}
+.cell .dl, .deck .dl{color:hsl(40 24% 82%)}
+.cell .dv, .deck .dv{color:var(--verd-hi)}
+
+/* ---------- rocker ---------- */
+.lever{
+  grid-row:1 / 3; width:44px; height:26px; border-radius:7px 9px 7px 9px;
+  position:relative; cursor:pointer;
+  background:linear-gradient(180deg, hsl(292 26% 8%), hsl(287 20% 16%));
+  border:1px solid hsl(31 40% 14%);
+  box-shadow:inset 0 2px 6px hsl(292 60% 2% / .8);
+}
+.lever b{
+  position:absolute; top:2px; left:2px; width:20px; height:20px;
+  border-radius:5px 7px 5px 7px;
+  background:linear-gradient(168deg, hsl(38 38% 54%), hsl(31 34% 22%));
+  box-shadow:inset 0 1px 0 hsl(46 64% 76% / .5), 0 2px 4px hsl(292 60% 3% / .6);
+  transition:transform .09s ease-out;
+}
+.rocker input:checked ~ .lever b{transform:translateX(18px)}
+.rocker input:checked ~ .lever{
+  background:linear-gradient(180deg, hsl(44 30% 18%), hsl(46 40% 26%));
+  box-shadow:inset 0 2px 6px hsl(292 60% 2% / .6), 0 0 10px hsl(52 80% 50% / .2);
+}
+.rocker input:focus-visible ~ .lever{outline:2px solid var(--verd-hi); outline-offset:3px}
+
+/* ---------- buttons ---------- */
 button{
   font:700 11px/1 var(--ui); letter-spacing:.09em; text-transform:uppercase;
-  color:hsl(46 44% 90%); cursor:pointer;
-  background:linear-gradient(178deg, hsl(38 36% 40%), hsl(33 40% 22%) 60%, hsl(30 42% 15%));
-  border:1px solid hsl(30 44% 12%); border-radius:11px 14px 10px 13px;
+  color:hsl(42 42% 90%); cursor:pointer;
+  background:linear-gradient(178deg, hsl(38 34% 38%), hsl(340 20% 20%) 62%, hsl(31 40% 14%));
+  border:1px solid hsl(31 44% 11%); border-radius:11px 14px 10px 13px;
   padding:9px 12px;
-  box-shadow:inset 0 1px 0 hsl(46 62% 72% / .42), inset 0 -6px 12px hsl(291 50% 4% / .4),
+  box-shadow:inset 0 1px 0 hsl(46 62% 74% / .44), inset 0 -6px 12px hsl(292 50% 3% / .42),
              0 3px 7px -4px #000;
-  transition:transform .1s ease, box-shadow .12s ease, border-color .12s ease;
 }
-button:hover{border-color:var(--verd); box-shadow:inset 0 1px 0 hsl(46 62% 72% / .5), 0 0 0 2px hsl(165 50% 42% / .28)}
-button:active{transform:translateY(1px); box-shadow:inset 0 3px 8px hsl(291 60% 3% / .6)}
+button:hover{border-color:var(--verd); box-shadow:inset 0 1px 0 hsl(46 62% 74% / .5), 0 0 0 2px hsl(165 50% 42% / .28)}
+button:active{transform:translateY(1px); box-shadow:inset 0 3px 8px hsl(292 60% 3% / .6)}
 button:focus-visible{outline:2px solid var(--verd-hi); outline-offset:2px}
 button.wide{width:100%}
+button.big{padding:12px 14px; font-size:12px}
+button.sm{padding:7px 10px; font-size:10px}
 button.lit{
-  color:hsl(50 60% 12%);
-  background:linear-gradient(178deg, hsl(52 88% 66%), hsl(46 74% 44%));
-  border-color:hsl(44 60% 22%);
-  box-shadow:inset 0 1px 0 hsl(56 90% 88% / .7), 0 0 16px hsl(52 88% 56% / .35);
+  color:hsl(50 62% 12%);
+  background:linear-gradient(178deg, hsl(52 86% 66%), hsl(46 72% 42%));
+  border-color:hsl(44 60% 20%);
+  box-shadow:inset 0 1px 0 hsl(56 90% 90% / .7), 0 0 15px hsl(52 88% 56% / .3);
 }
 
-/* sliders: a carved groove in the plate with a verdigris nodule riding it */
-input[type=range]{
-  -webkit-appearance:none; appearance:none;
-  width:100%; height:20px; margin:0; background:transparent; cursor:pointer;
-}
-input[type=range]::-webkit-slider-runnable-track{
-  height:8px; border-radius:99px;
-  background:linear-gradient(180deg, hsl(291 34% 8%), hsl(285 22% 17%));
-  border:1px solid hsl(42 20% 46% / .7);
-  box-shadow:inset 0 2px 4px hsl(291 60% 2% / .8), 0 1px 0 hsl(56 40% 96% / .45);
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none; appearance:none;
-  width:17px; height:17px; margin-top:-5.5px; border-radius:52% 48% 55% 45% / 48% 55% 45% 52%;
-  background:radial-gradient(circle at 33% 28%, var(--verd-hi), var(--verd) 46%, var(--verd-d));
-  border:1px solid hsl(168 50% 12%);
-  box-shadow:inset 0 1px 2px hsl(165 70% 85% / .55), 0 2px 4px hsl(291 60% 3% / .6);
-}
-input[type=range]::-moz-range-track{
-  height:8px; border-radius:99px;
-  background:linear-gradient(180deg, hsl(291 34% 8%), hsl(285 22% 17%));
-  border:1px solid hsl(42 20% 46% / .7);
-}
-input[type=range]::-moz-range-thumb{
-  width:17px; height:17px; border-radius:52% 48% 55% 45% / 48% 55% 45% 52%;
-  background:radial-gradient(circle at 33% 28%, var(--verd-hi), var(--verd) 46%, var(--verd-d));
-  border:1px solid hsl(168 50% 12%);
-}
-input[type=range]:focus{outline:none}
-input[type=range]:focus::-webkit-slider-runnable-track{border-color:var(--verd)}
-input[type=range].mould::-webkit-slider-thumb{
-  background:radial-gradient(circle at 33% 28%, hsl(56 95% 78%), var(--slime) 46%, var(--slime-d));
-  border-color:hsl(44 60% 18%);
-}
-input[type=range].mould::-moz-range-thumb{
-  background:radial-gradient(circle at 33% 28%, hsl(56 95% 78%), var(--slime) 46%, var(--slime-d));
-  border-color:hsl(44 60% 18%);
-}
-
-.cap{margin:7px 0 0; color:hsl(283 12% 30%); font:400 11.5px/1.5 var(--ui)}
+.cap{margin:9px 0 0; color:hsl(288 12% 29%); font:400 11.5px/1.5 var(--ui)}
 .cap code{font-family:var(--mono); font-size:10.8px; color:hsl(168 50% 22%)}
 .cap b{color:var(--ink)}
-.organ .cap:not(:last-child){margin-bottom:11px}
+.cell .cap, .deck .cap{color:hsl(40 15% 60%)}
+.cell .cap code, .deck .cap code{color:var(--verd-hi)}
+.cell .cap b, .deck .cap b{color:hsl(40 28% 82%)}
 
-.readout{display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px dashed hsl(42 18% 48% / .5)}
+.readout{display:flex; justify-content:space-between; gap:10px; padding:4px 0;
+  border-bottom:1px dashed hsl(40 18% 46% / .28)}
 .readout:last-child{border-bottom:0}
-.readout span:first-child{font:400 11.5px/1.4 var(--ui); color:var(--dim)}
-.readout span:last-child{color:hsl(168 52% 20%); font-weight:700}
+.readout span:first-child{font:400 11.5px/1.4 var(--ui); color:hsl(40 12% 56%)}
+.readout span:last-child{color:var(--verd-hi); font-weight:700}
 
 /* ---------- stage ---------- */
 .stage{display:flex; flex-direction:column; gap:clamp(14px,1.8vw,20px); min-width:0}
-.footrow{display:grid; grid-template-columns:1.32fr .68fr; gap:15px; min-width:0}
-.footrow .organ:nth-of-type(1){border-radius:24px 32px 18px 28px / 28px 18px 30px 20px; transform:rotate(.12deg)}
-.footrow .organ:nth-of-type(2){border-radius:30px 18px 28px 22px / 20px 30px 20px 28px; transform:rotate(-.14deg)}
-@media(max-width:640px){.footrow{grid-template-columns:1fr}}
 .bank{display:grid; grid-template-columns:1.16fr .84fr; gap:16px 15px; min-width:0}
-.cell{
-  min-width:0; padding:11px 12px 12px;
-  border:1px solid hsl(165 34% 36% / .3);
-  background:linear-gradient(158deg, hsl(285 24% 10% / .9), hsl(200 20% 7% / .86));
-  box-shadow:inset 0 2px 12px hsl(291 60% 2% / .85), inset 0 0 0 1px hsl(165 40% 44% / .1),
-             0 16px 30px -22px #000;
+.cell{position:relative; min-width:0; padding:12px 14px 14px}
+.cell:nth-child(1){grid-column:1 / -1}
+.cellhead{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap}
+.cellhead h2{flex:1 1 7rem; min-width:6rem}
+.inset{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  margin:0 0 10px; padding:8px 12px 9px;
+  border:1px solid hsl(340 24% 34% / .45);
+  border-radius:14px 20px 12px 18px / 18px 12px 20px 14px;
+  background:linear-gradient(160deg, hsl(340 20% 16% / .6), hsl(292 26% 9% / .6));
+  box-shadow:inset 0 1px 0 hsl(346 40% 60% / .16);
 }
-.cell:nth-child(1){grid-column:1 / -1; border-radius:24px 32px 18px 28px / 28px 18px 30px 20px; transform:rotate(-.16deg)}
-.cell:nth-child(2){border-radius:30px 18px 28px 20px / 20px 30px 18px 28px; transform:rotate(.12deg)}
-.cell:nth-child(3){border-radius:18px 30px 22px 32px / 26px 20px 30px 18px}
-.cell .cap{color:hsl(46 16% 62%)}
-.cell .cap code{color:var(--verd-hi)}
-.cell .cap b{color:hsl(46 30% 82%)}
-canvas{width:100%; display:block; border-radius:12px 16px 12px 16px;
-  background:linear-gradient(168deg, hsl(287 30% 6%), hsl(198 26% 5%));
-  box-shadow:inset 0 0 0 1px hsl(165 40% 40% / .16), inset 0 3px 14px hsl(291 70% 2% / .9);}
-#curve{height:212px}
-#loop,#scope{height:236px}
+.gauge{display:flex; align-items:center; gap:8px}
+.gauge svg{width:64px; height:40px; overflow:visible}
+.gauge .arc{stroke-dashoffset:calc(100 - var(--w,0) * 100)}
+.gauge .needle{transform:rotate(calc(-90deg + var(--w,0) * 180deg)); transform-origin:42px 45px}
+.gv{font:400 10.5px/1.3 var(--mono); color:var(--slime)}
 
-.legend{display:flex; flex-wrap:wrap; gap:6px 14px; margin:9px 0 0; font-size:11px; color:hsl(46 14% 58%)}
-.legend b{font-size:12px}
+canvas{width:100%; display:block; border-radius:11px 15px 11px 15px;
+  background:linear-gradient(168deg, hsl(288 30% 6%), hsl(198 26% 4%));
+  box-shadow:inset 0 0 0 1px hsl(165 40% 40% / .18), inset 0 3px 14px hsl(292 70% 2% / .9);}
+#curve{height:210px}
+#loop,#scope{height:232px}
 
-/* keyboard: contacts set into the plate */
-.deck{
-  padding:13px 14px 14px;
-  border:1px solid hsl(42 24% 40% / .42);
-  border-radius:28px 20px 30px 22px / 20px 30px 22px 28px;
-  background:linear-gradient(172deg, hsl(285 20% 14% / .8), hsl(290 28% 8% / .78));
-  box-shadow:inset 0 1px 0 hsl(46 40% 60% / .16), 0 14px 28px -22px #000;
-}
+.legend{display:flex; flex-wrap:wrap; gap:6px 15px; margin:9px 0 0;
+  font-size:11px; color:hsl(40 14% 58%)}
+.legend b{font-size:12.5px}
+#memPct{color:var(--hot)} #harmPct{color:var(--verd-hi)} #pinchPct{color:var(--iris)}
+
+/* ---------- deck ---------- */
+.deck{position:relative; padding:13px 15px 15px}
+.deckhead{display:flex; align-items:center; justify-content:space-between;
+  gap:18px; flex-wrap:wrap; margin-bottom:12px}
+.surf{display:flex; gap:6px}
+.dials.perf{gap:12px 18px}
+
 .keys{display:flex; gap:4px; flex-wrap:wrap}
+.keys[hidden]{display:none}
+/* contacts set into the plate rather than piano keys */
 .keys button{
-  flex:1 1 36px; width:auto; padding:15px 0; font-size:10px; letter-spacing:.04em;
-  border-radius:9px 12px 8px 11px;
+  flex:1 1 36px; width:auto; padding:16px 0 15px; font-size:9.5px; letter-spacing:.03em;
+  border-radius:9px 13px 8px 12px;
+  background:linear-gradient(176deg, hsl(36 26% 74%), hsl(20 16% 56%) 60%, hsl(14 20% 38%));
+  color:hsl(292 30% 14%);
+  border-color:hsl(31 40% 20%);
+  box-shadow:inset 0 1px 0 hsl(40 50% 94% / .8), inset 0 -7px 12px hsl(14 28% 30% / .35),
+             0 3px 6px -3px #000;
 }
-.keys button:nth-child(3n){border-radius:12px 9px 11px 8px}
-.keys button:nth-child(4n){border-radius:8px 11px 12px 9px}
-.deck .cap{color:hsl(46 14% 58%); margin-top:11px}
-.deck .cap code{color:var(--verd-hi)}
-.deck .cap b{color:hsl(46 30% 82%)}
+.keys button:nth-child(3n){border-radius:13px 9px 12px 8px}
+.keys button:nth-child(4n){border-radius:8px 12px 13px 9px}
+.keys button.acc{
+  background:linear-gradient(176deg, hsl(292 14% 26%), hsl(340 16% 15%) 58%, hsl(292 30% 9%));
+  color:hsl(40 22% 74%);
+  box-shadow:inset 0 1px 0 hsl(346 30% 52% / .35), 0 3px 6px -3px #000;
+}
+.keys button.lit{
+  background:linear-gradient(176deg, hsl(52 88% 70%), hsl(46 74% 44%));
+  color:hsl(50 62% 12%);
+  box-shadow:inset 0 1px 0 hsl(56 92% 92% / .7), 0 0 16px hsl(52 88% 56% / .4);
+}
+.keys button.held{
+  background:linear-gradient(176deg, hsl(165 52% 56%), hsl(168 46% 30%));
+  color:hsl(168 60% 10%);
+  box-shadow:inset 0 1px 0 hsl(165 70% 88% / .6), 0 0 12px hsl(165 62% 48% / .3);
+}
+.ribbon{height:132px; border-radius:14px 20px 14px 20px; cursor:ew-resize; touch-action:none}
+.ribbon[hidden]{display:none}
+
+/* ---------- footrow ---------- */
+.cell.flat{padding:14px 15px 15px}
+.status .readouts{display:flex; flex-wrap:wrap; gap:4px 26px}
+.status .readout{flex:1 1 9rem; border-bottom:1px dashed hsl(40 18% 46% / .28)}
 
 footer{
   max-width:98ch; margin:0 auto;
   padding:clamp(18px,3vw,30px) clamp(14px,2.6vw,26px) clamp(28px,4vw,44px);
-  color:hsl(46 12% 62%); font:400 13px/1.62 var(--ui);
+  color:hsl(40 12% 60%); font:400 13px/1.62 var(--ui);
 }
-footer h3{
-  margin:0 0 7px; font:700 11px/1.3 var(--ui); letter-spacing:.17em;
-  text-transform:uppercase; color:var(--verd-hi);
-}
+footer h3{margin:0 0 7px; font:700 11px/1.3 var(--ui); letter-spacing:.17em;
+  text-transform:uppercase; color:var(--verd-hi)}
 footer section{margin:0 0 20px}
 footer section:last-child{margin-bottom:0}
 footer p{margin:0 0 9px}
-footer code{font-family:var(--mono); font-size:11.5px; color:hsl(46 34% 76%)}
-footer b{color:hsl(46 32% 84%)}
+footer code{font-family:var(--mono); font-size:11.5px; color:hsl(40 32% 76%)}
+footer b{color:hsl(40 30% 84%)}
 footer a{color:var(--verd-hi)}
 footer .sib{display:flex; flex-wrap:wrap; gap:8px 10px; margin-top:12px; font-size:11px}
 footer .sib a{
-  padding:5px 11px; border:1px solid hsl(165 34% 36% / .4); border-radius:10px 14px 9px 13px;
-  color:hsl(46 26% 78%); text-decoration:none;
-  background:linear-gradient(170deg, hsl(285 22% 15% / .7), hsl(290 30% 9% / .7));
+  padding:5px 11px; border:1px solid hsl(165 34% 34% / .4); border-radius:10px 14px 9px 13px;
+  color:hsl(40 24% 78%); text-decoration:none;
+  background:linear-gradient(170deg, hsl(287 22% 14% / .7), hsl(290 30% 8% / .7));
 }
 footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
 
@@ -312,15 +446,36 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
 @media(max-width:1080px){
   main{grid-template-columns:1fr}
   .bank{grid-template-columns:1fr}
-  .cell,.cell:nth-child(1),.cell:nth-child(2){transform:none}
+}
+@media(max-width:640px){
+  .dials{gap:12px}
 }
 @media(prefers-reduced-motion:reduce){
-  button{transition:none}
-  body::after{transition:none}
+  button, .lever b{transition:none}
 }
 </style>
 </head>
 <body>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <!-- torn edges. The filter runs on a backdrop layer only, never on an element
+         containing controls, so the membrane is ragged and the type stays crisp. -->
+    <filter id="tear" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.021 0.037" numOctaves="3" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="17" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="tear2" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.016 0.029" numOctaves="3" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="12" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <linearGradient id="vein" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="hsl(38 46% 46%)"/>
+      <stop offset=".5" stop-color="hsl(340 26% 42%)"/>
+      <stop offset="1" stop-color="hsl(165 40% 32%)"/>
+    </linearGradient>
+  </defs>
+</svg>
 
 <header>
   <div class="nameplate">
@@ -335,231 +490,241 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
   </div>
 
   <div class="hactions">
-    <button id="start" class="wide">Start audio</button>
-    <div class="readout"><span>state</span><span id="ctxVal">stopped</span></div>
+    <button id="start" class="wide big">Start audio</button>
+    <div class="chips">
+      <span class="chip" id="ctxChip">stopped</span>
+      <span class="chip" id="midiStat">MIDI &mdash;</span>
+      <span class="chip" id="octChip">oct 0</span>
+      <span class="chip" id="susChip">sustain</span>
+    </div>
   </div>
 </header>
 
 <main>
   <div class="side">
+   <div class="organism">
+    <span class="skin" aria-hidden="true"></span>
+    <svg class="veins" viewBox="0 0 100 1000" preserveAspectRatio="none" aria-hidden="true">
+      <path id="v1" d="M50 8 C34 90 66 150 50 236 C36 310 64 372 50 452 C38 530 62 596 50 690 C40 780 60 850 50 972"
+            fill="none" stroke="url(#vein)" stroke-width="3" stroke-linecap="round"/>
+      <path id="v2" d="M50 60 C72 120 30 200 58 280 C80 344 28 420 54 500 C74 566 30 640 52 726"
+            fill="none" stroke="url(#vein)" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
+    </svg>
 
-    <div class="organ">
-      <h2>M(q) — the memristance curve</h2>
-      <input type="text" id="eq" value="100*((q+1)/2) + 8000*(1-(q+1)/2)" spellcheck="false">
+    <section class="chamber">
+      <h2>M(q) &mdash; the memristance curve</h2>
+      <div class="slot">
+        <input type="text" id="eq" value="100*((q+1)/2) + 8000*(1-(q+1)/2)" spellcheck="false"
+               aria-label="memristance curve M of q">
+      </div>
       <p id="eqErr"></p>
-      <label>
-        <select id="preset">
-          <option value="">— presets —</option>
-        </select>
+      <label class="pick">
+        <select id="preset" aria-label="preset"><option value="">&mdash; presets &mdash;</option></select>
       </label>
       <p class="cap"><code>q</code> runs &minus;1 to 1. <code>Math</code> is in scope, so
       <code>sin</code>, <code>exp</code>, <code>abs</code> and <code>PI</code> all work.
-      Values are clamped to at least 20&thinsp;&Omega; so the current stays finite.
-      Presets set the curve and every control below it.</p>
-    </div>
+      Values are clamped to at least 20&thinsp;&Omega;. A preset sets the curve and every
+      control below it.</p>
+    </section>
 
-    <div class="organ">
+    <section class="chamber">
       <h2>Wear</h2>
-      <label>
-        <div class="row"><span>Rate &mu;</span><span class="val" id="muL"></span></div>
-        <input type="range" id="mu" min="4" max="7.5" step="0.02" value="6">
-      </label>
-      <label>
-        <div class="row"><span>Relaxation &tau;</span><span class="val" id="tauL"></span></div>
-        <input type="range" id="tau" min="-3" max="1.7" step="0.02" value="0.3">
-      </label>
-      <label>
-        <div class="row"><span>Charge domain</span><span class="val"></span></div>
-        <select id="edge">
-          <option value="clamp" selected>Clamp at the ends</option>
-          <option value="wrap">Wrap (charge keeps going)</option>
-        </select>
-      </label>
-      <p class="cap"><b>&mu;</b> sets how far a given current moves the charge, and so how much
-      of the curve one cycle sweeps. <b>&tau;</b> pulls the charge back toward zero when
-      nothing is driving it: short &tau; reaches equilibrium at once and holds a steady
-      timbre, long &tau; keeps wearing while a note is held and carries the state into the
-      next note.</p>
-    </div>
+      <div class="dials">
+        <label class="dial">
+          <input type="range" id="mu" min="4" max="7.5" step="0.02" value="6" aria-label="drift rate mu">
+          <span class="knob" aria-hidden="true"><i></i></span>
+          <span class="dl">Rate &mu;</span><span class="dv" id="muL"></span>
+        </label>
+        <label class="dial">
+          <input type="range" id="tau" min="-3" max="1.7" step="0.02" value="0.3" aria-label="relaxation tau">
+          <span class="knob" aria-hidden="true"><i></i></span>
+          <span class="dl">Relax &tau;</span><span class="dv" id="tauL"></span>
+        </label>
+        <label class="rocker">
+          <input type="checkbox" id="edge" aria-label="wrap the charge domain">
+          <span class="lever" aria-hidden="true"><b></b></span>
+          <span class="dl">Charge domain</span>
+          <span class="dv" id="edgeL">clamp</span>
+        </label>
+      </div>
+      <p class="cap"><b>&mu;</b> sets how far a given current moves the charge, and so how
+      much of the curve one cycle sweeps. <b>&tau;</b> pulls the charge back toward zero
+      when nothing drives it: short &tau; holds a steady timbre, long &tau; keeps wearing
+      while a note is held and carries the state into the next note.</p>
+    </section>
 
-    <div class="organ">
-      <h2>Senescence</h2>
-      <label>
-        <div class="row"><span>Half-life</span><span class="val" id="senL"></span></div>
-        <input type="range" id="sen" min="0" max="6" step="0.02" value="0">
-      </label>
-      <label>
-        <div class="row"><span>Substrate</span><span class="val" id="wearL">0.0% worn</span></div>
-        <button id="fresh" class="wide">Fresh substrate</button>
-      </label>
-      <p class="cap">Playing abrades the curve. Where the charge dwells, <code>M(q)</code>
-      blends toward its own mean, so the played stretch loses its shape. The dashed line on
-      the display is the equation you wrote; the solid line is what is left of it. The
-      half-life is quoted at amplitude 1 — louder wears faster. <b>Fresh substrate</b>
-      clears it; editing the equation does not.</p>
-    </div>
-
-    <div class="organ">
+    <section class="chamber">
       <h2>Colony</h2>
-      <label>
-        <div class="row"><span>Elements</span><span class="val" id="nL">1</span></div>
-        <input type="range" id="n" min="1" max="8" step="1" value="1">
-      </label>
-      <label>
-        <div class="row"><span>Spread in &mu;</span><span class="val" id="spreadL"></span></div>
-        <input type="range" id="spread" min="0" max="1.5" step="0.01" value="0">
-      </label>
-      <label>
-        <div class="row"><span>Reinforcement</span><span class="val" id="reinL"></span></div>
-        <input type="range" id="rein" min="0" max="1" step="0.01" value="0">
-      </label>
+      <div class="dials">
+        <label class="dial">
+          <input type="range" id="n" min="1" max="8" step="1" value="1" aria-label="number of elements">
+          <span class="knob" aria-hidden="true"><i></i></span>
+          <span class="dl">Elements</span><span class="dv" id="nL">1</span>
+        </label>
+        <label class="dial">
+          <input type="range" id="spread" min="0" max="1.5" step="0.01" value="0" aria-label="spread in mu">
+          <span class="knob" aria-hidden="true"><i></i></span>
+          <span class="dl">Spread</span><span class="dv" id="spreadL"></span>
+        </label>
+        <label class="dial">
+          <input type="range" id="rein" min="0" max="1" step="0.01" value="0" aria-label="reinforcement">
+          <span class="knob" aria-hidden="true"><i></i></span>
+          <span class="dl">Reinforce</span><span class="dv" id="reinL"></span>
+        </label>
+      </div>
       <p class="cap">Several elements across the same drive, sharing one substrate.
       <b>Spread</b> gives them different rates &mu;, so they sit at different points on the
       curve at once. <b>Reinforcement</b> is Tero's tube law: an element carrying more
       current thickens and carries more still, an idle one thins back. At 0 the elements
-      are fixed and sum.</p>
-    </div>
+      are fixed and sum. The vein running beside these controls thickens with them.</p>
+    </section>
 
-    <div class="organ">
-      <h2>Mould</h2>
-      <label>
-        <div class="row"><span>Parallel capacitance</span><span class="val" id="capL"></span></div>
-        <input type="range" id="cap" class="mould" min="0" max="20" step="0.05" value="0">
-      </label>
-      <p class="cap">A capacitance across the element. It carries current and holds no
-      state, so it opens the loop into an ellipse that misses the origin and adds nothing
-      above the fundamental. Raise it and <b>memory</b> climbs while <b>harmonic</b> stays
-      at zero. Its share grows with pitch, which is the inverse of how the element
-      behaves.</p>
-    </div>
-
+    <section class="chamber">
+      <h2>Drive</h2>
+      <div class="dials">
+        <label class="dial">
+          <input type="range" id="amp" min="0.05" max="2" step="0.01" value="1" aria-label="amplitude">
+          <span class="knob" aria-hidden="true"><i></i></span>
+          <span class="dl">Amplitude</span><span class="dv" id="ampL"></span>
+        </label>
+        <label class="dial">
+          <input type="range" id="gain" min="0" max="1" step="0.01" value="0.4" aria-label="output level">
+          <span class="knob" aria-hidden="true"><i></i></span>
+          <span class="dl">Output</span><span class="dv" id="gainL"></span>
+        </label>
+        <label class="rocker">
+          <input type="checkbox" id="auto" checked aria-label="auto level">
+          <span class="lever" aria-hidden="true"><b></b></span>
+          <span class="dl">Auto level</span>
+          <span class="dv" id="autoL">on</span>
+        </label>
+      </div>
+      <p class="cap">The current is <code>v/M(q)</code>, so output level tracks
+      <code>1/M</code> and swings as widely as the curve &mdash; 80:1 on the HP preset.
+      Auto level is a slow (80&thinsp;ms) gain that flattens the swing without touching
+      the waveform inside a cycle, so timbre and keyfollow survive it. Velocity and
+      amplitude both enter the drive, so with Auto level on they change harmonic content
+      without changing loudness. Turn it off to hear the raw current.</p>
+    </section>
+   </div>
   </div>
 
   <div class="stage">
     <div class="bank">
       <div class="cell">
+        <span class="skin" aria-hidden="true"></span>
+        <div class="cellhead">
+          <h2>Substrate</h2>
+          <div class="inset">
+            <label class="dial sm">
+              <input type="range" id="sen" min="0" max="6" step="0.02" value="0" aria-label="senescence half-life">
+              <span class="knob" aria-hidden="true"><i></i></span>
+              <span class="dl">Senescence</span><span class="dv" id="senL"></span>
+            </label>
+            <div class="gauge" role="img" aria-label="substrate wear">
+              <svg viewBox="0 0 84 52" id="wearGauge">
+                <path d="M9 45 A33 33 0 0 1 75 45" fill="none" stroke="hsl(42 18% 34%)" stroke-width="3"/>
+                <path d="M9 45 A33 33 0 0 1 75 45" fill="none" stroke="var(--slime)" stroke-width="3"
+                      pathLength="100" stroke-dasharray="100" class="arc"/>
+                <g class="needle">
+                  <path d="M42 45 L42 17" stroke="var(--bronze-hi)" stroke-width="2.4" stroke-linecap="round"/>
+                </g>
+                <circle cx="42" cy="45" r="4.2" fill="hsl(33 40% 24%)" stroke="hsl(46 60% 68%)" stroke-width="1"/>
+              </svg>
+              <span class="gv" id="wearL">0.0% worn</span>
+            </div>
+            <button id="fresh" class="sm">Fresh substrate</button>
+          </div>
+        </div>
         <canvas id="curve" width="1040" height="424"></canvas>
         <p class="cap">M(q) across the charge domain. <b>Dashed</b> is the equation as
         written, <b>solid</b> is the substrate after wear, and the strip along the bottom is
         how far each part of the domain has worn. Each marker is one element of the colony,
-        sized by its tube thickness. Playing moves them; releasing lets &tau; carry them back.</p>
+        sized by its tube thickness. Playing abrades the curve toward its own mean where the
+        charge dwells; the half-life is nominal, quoted at amplitude 1, and louder playing
+        wears faster. <b>Fresh substrate</b> clears it &mdash; editing the equation does not.</p>
       </div>
+
       <div class="cell">
-        <canvas id="loop" width="880" height="472"></canvas>
-        <p class="cap">Current against drive voltage over one cycle, taken before the gain
-        stage. A memristance that varies with charge opens the line into a loop; a constant
-        M(q) collapses it to a straight line. <b>Memory</b> is the share of Fourier energy in
-        coefficients no memoryless device can produce. <b>Harmonic</b> is the share above the
-        fundamental. <b>Pinch</b> is |I| at the voltage zero-crossings, where 0% means the
-        loop passes through the origin — Chua's criterion for memristance, necessary and
-        disputed as sufficient.</p>
-        <div class="legend">
-          <span>memory <b id="memPct" style="color:var(--hot)">—</b></span>
-          <span>harmonic <b id="harmPct" style="color:var(--verd-hi)">—</b></span>
-          <span>pinch <b id="pinchPct" style="color:var(--iris)">—</b></span>
+        <span class="skin" aria-hidden="true"></span>
+        <div class="cellhead">
+          <h2>Hysteresis</h2>
+          <div class="inset">
+            <label class="dial sm">
+              <input type="range" id="cap" class="mould" min="0" max="20" step="0.05" value="0"
+                     aria-label="parallel capacitance">
+              <span class="knob" aria-hidden="true"><i></i></span>
+              <span class="dl">Mould</span><span class="dv" id="capL"></span>
+            </label>
+          </div>
         </div>
+        <canvas id="loop" width="880" height="472"></canvas>
+        <div class="legend">
+          <span>memory <b id="memPct">&mdash;</b></span>
+          <span>harmonic <b id="harmPct">&mdash;</b></span>
+          <span>pinch <b id="pinchPct">&mdash;</b></span>
+        </div>
+        <p class="cap">Current against drive voltage over one cycle, taken before the gain
+        stage. <b>Memory</b> is the share of Fourier energy in coefficients no memoryless
+        device can produce. <b>Harmonic</b> is the share above the fundamental. <b>Pinch</b>
+        is |I| at the voltage zero-crossings, where 0% means the loop passes through the
+        origin. The <b>Mould</b> dial adds a capacitance that carries current and holds no
+        state: raise it and memory climbs while harmonic stays at zero, which is the
+        combination Schmidt et al. measured on <i>Physarum polycephalum</i> in 2025 and
+        reproduced with resistors and capacitors alone.</p>
       </div>
+
       <div class="cell">
+        <span class="skin" aria-hidden="true"></span>
+        <div class="cellhead"><h2>Current</h2></div>
         <canvas id="scope" width="880" height="472"></canvas>
         <p class="cap">Output current. Low notes wear the element further within a cycle and
-        come out dirtier: at the default settings, harmonic content above the fundamental
-        runs 4.5% at 110&nbsp;Hz, 0.76% at 220, 0.18% at 440 and 0.04% at 880 — about a
-        quarter per octave. No keyfollow rule is written anywhere; it falls out of the
-        charge integrating. Below 110&nbsp;Hz the figure climbs steeply and turns sensitive
-        to &mu;: at 55&nbsp;Hz it is 30% at the default rate and 1.6% at a third of it, so
-        treat that end as a setting rather than a property. Amplitude enters the same way,
-        0.2% at 0.25 rising to 18% at 2.</p>
+        come out dirtier: harmonic content above the fundamental runs 4.5% at 110&nbsp;Hz,
+        0.76% at 220, 0.18% at 440 and 0.04% at 880 &mdash; about a quarter per octave, with
+        no keyfollow rule written anywhere. Below 110&nbsp;Hz it climbs steeply and turns
+        sensitive to &mu;, so treat that end as a setting rather than a property.</p>
       </div>
     </div>
 
     <div class="deck">
+      <span class="skin" aria-hidden="true"></span>
+      <div class="deckhead">
+        <div class="surf">
+          <button id="keysBtn" class="sm lit">Keys</button>
+          <button id="ribBtn" class="sm">Ribbon</button>
+        </div>
+        <div class="dials perf">
+          <label class="dial sm">
+            <input type="range" id="glide" min="0" max="0.4" step="0.005" value="0" aria-label="glide time">
+            <span class="knob" aria-hidden="true"><i></i></span>
+            <span class="dl">Glide</span><span class="dv" id="glideL"></span>
+          </label>
+          <label class="dial sm">
+            <input type="range" id="veld" min="0" max="1" step="0.01" value="0.7" aria-label="velocity depth">
+            <span class="knob" aria-hidden="true"><i></i></span>
+            <span class="dl">Velocity</span><span class="dv" id="veldL"></span>
+          </label>
+        </div>
+      </div>
       <div class="keys" id="keys"></div>
-      <p class="cap">Keyboard row <code>a w s e d f t g y h u j k</code> also plays.
-      With a long &tau;, holding a note dulls it as the charge settles — at &tau; = 3&nbsp;s,
-      4.9% down to 3.5% harmonic content over 2.2&nbsp;s, and further with relaxation off.
-      At &tau; = 20&nbsp;ms it reaches equilibrium at once and holds 5.4% flat instead.</p>
+      <canvas class="ribbon" id="ribbon" width="1200" height="150" hidden></canvas>
+      <p class="cap" id="surfHint"></p>
     </div>
 
-    <div class="footrow">
-      <div class="organ">
-        <h2>Drive</h2>
-        <label>
-          <div class="row"><span>Amplitude</span><span class="val" id="ampL"></span></div>
-          <input type="range" id="amp" min="0.05" max="2" step="0.01" value="1">
-        </label>
-        <label>
-          <div class="row"><span>Output level</span><span class="val" id="gainL"></span></div>
-          <input type="range" id="gain" min="0" max="1" step="0.01" value="0.4">
-        </label>
-        <label>
-          <div class="row"><span>Auto level</span><span class="val"></span></div>
-          <select id="auto">
-            <option value="1" selected>On — flatten the M(q) gain swing</option>
-            <option value="0">Off — raw current, 80:1 range</option>
-          </select>
-        </label>
-        <p class="cap">The current is <code>v/M(q)</code>, so output level tracks
-        <code>1/M</code> and swings as widely as the curve — 80:1 on the HP preset. Auto
-        level is a slow (80&thinsp;ms) gain that flattens the swing without touching the
-        waveform inside a cycle, so timbre and keyfollow survive it. Turn it off to hear
-        the raw current.</p>
-      </div>
-
-      <div class="organ">
-        <h2>State</h2>
-        <div class="readout"><span>charge q</span><span id="qVal">—</span></div>
-        <div class="readout"><span>M(q)</span><span id="mVal">—</span></div>
-        <div class="readout"><span>peak out</span><span id="pkVal">—</span></div>
+    <div class="cell flat status">
+      <span class="skin" aria-hidden="true"></span>
+      <h2>State</h2>
+      <div class="readouts">
+        <div class="readout"><span>charge q</span><span id="qVal">&mdash;</span></div>
+        <div class="readout"><span>M(q)</span><span id="mVal">&mdash;</span></div>
+        <div class="readout"><span>peak out</span><span id="pkVal">&mdash;</span></div>
         <div class="readout"><span>substrate worn</span><span id="wVal">0.0%</span></div>
         <div class="readout"><span>played</span><span id="ageVal">0.0 s</span></div>
-        <div class="readout"><span>oversampling</span><span id="osVal">8×</span></div>
+        <div class="readout"><span>oversampling</span><span id="osVal">8&times;</span></div>
       </div>
     </div>
   </div>
 </main>
-
-<footer>
-  <section>
-    <h3>The name</h3>
-    <p><i>Physa</i> is Greek for bellows, and it is the root of <i>Physarum</i>, the slime
-    mould named for its sporangia. That organism was reported as a biological memristor in
-    2015 (Gale, de Lacy Costello and Adamatzky), and roughly a decade of computer music was
-    built on it. In 2025 Schmidt, Seyfried, Reutina, Seskir and Miranda characterised
-    multiple specimens and found no significant memristance: elliptical I–V curves produced
-    by the organism's own capacitance, which they reproduced with resistors and capacitors
-    alone (<i>MRS Advances</i> 10(14): 1710–1716). Miranda had composed the music.
-    The <b>Mould</b> control puts that measurement on a dial, so the false positive is
-    audible and visible beside the ideal element it was mistaken for.</p>
-  </section>
-
-  <section>
-    <h3>Why this is not a simulation of a device</h3>
-    <p>Chua deduced the memristor in 1971 from the symmetry of <code>v, i, q, φ</code> — it
-    existed as a gap in a table before it existed as anything else. Whether matter can
-    realise the ideal element is disputed: Vongehr and Meng argue it is likely impossible
-    (<i>Sci. Rep.</i> 5:11657), and Pershin and Di Ventra's charge-only test has disqualified
-    claimed devices. Those results constrain hardware. Here the element is exactly its
-    definition, and <b>M(q)</b> can be any curve at all — periodic in charge, discontinuous,
-    whatever matter would refuse.</p>
-  </section>
-
-  <section>
-    <h3>What it claims</h3>
-    <p>The claim is about specification, not about reachable timbres — any single instant of
-    this output is reachable by some waveshaper. One equation and two constants yield a
-    nonlinearity that keyfollows, tracks level, and carries history across notes, none of
-    which was written as a rule. Senescence extends that to a third timescale: the curve
-    itself is a state variable, and an hour of playing leaves an element that no longer
-    matches its own definition.</p>
-    <div class="sib">
-      <a href="../">Anexacta</a>
-      <a href="../aliquoto/">Aliquoto — additive</a>
-      <a href="../cella/">Cella — resonant</a>
-      <a href="../moire/">Moire — phase modulation</a>
-      <a href="./physa.md">Notes</a>
-    </div>
-  </section>
-</footer>
 
 <script>
 "use strict";
@@ -589,7 +754,8 @@ class PhysaProc extends AudioWorkletProcessor {
     this.mu=1e6; this.tau=2; this.edge=0;
     this.spread=0; this.rein=0; this.tauD=0.35;
     this.capF=0; this.thalf=0; this.senes=0;
-    this.freq=110; this.amp=1; this.OS=8; this.tick=0; this.Rref=1200;
+    this.freq=110; this.freqT=110; this.lf=Math.log(110); this.glide=0; this.vel=1;
+    this.amp=1; this.OS=8; this.tick=0; this.Rref=1200;
     this.dcx=0; this.dcy=0; this.ms=1e-4; this.g=1; this.auto=1; this.peak=0;
     this.age=0;
     // one drive cycle of (v, i) for the hysteresis loop, captured pre-AGC so the
@@ -633,7 +799,16 @@ class PhysaProc extends AudioWorkletProcessor {
     }
     if(d.spread!==undefined){ this.spread=d.spread; this.setColony(); }
     if(d.fresh){ this.wear.fill(0); this.age=0; }
-    if(d.noteOn!==undefined){ this.freq=d.noteOn; this.gate=1; }
+    if(d.glide!==undefined) this.glide=d.glide;
+    if(d.vel!==undefined) this.vel=d.vel;
+    if(d.noteOn!==undefined){
+      this.freqT=d.noteOn;
+      // Glide is between notes, not out of silence: a note struck from rest starts
+      // at its own pitch. Starting every note from the last one's frequency would
+      // put a portamento on the first note of every phrase.
+      if(!this.gate || this.glide<=0){ this.freq=this.freqT; this.lf=Math.log(this.freqT); }
+      this.gate=1;
+    }
     if(d.noteOff!==undefined) this.gate=0;
   }
 
@@ -685,6 +860,13 @@ class PhysaProc extends AudioWorkletProcessor {
 
   process(inputs, outputs){
     const out=outputs[0][0], sr=sampleRate, OS=this.OS, N=this.N;
+    if(this.glide>0 && this.freq!==this.freqT){
+      const c=Math.exp(-out.length/(this.glide*sr));
+      const lt=Math.log(this.freqT);
+      this.lf = lt + (this.lf-lt)*c;
+      this.freq = Math.exp(this.lf);
+      if(Math.abs(this.lf-lt) < 1e-4){ this.freq=this.freqT; this.lf=lt; }
+    }
     const dt=1/(sr*OS), om=2*Math.PI*this.freq;
     const relax = this.tau>0 ? 1/this.tau : 0;
     const aC=Math.exp(-1/(0.004*sr)), rC=Math.exp(-1/(0.25*sr));
@@ -697,7 +879,7 @@ class PhysaProc extends AudioWorkletProcessor {
       for(let k=0;k<OS;k++){
         this.phase += om*dt;
         if(this.phase>2*Math.PI) this.phase-=2*Math.PI;
-        const drv=this.amp*this.env;
+        const drv=this.amp*this.vel*this.env;
         const v=drv*Math.sin(this.phase);
         let isum=0;
         for(let e=0;e<N;e++){
@@ -852,14 +1034,15 @@ function params(){
   node.port.postMessage({
     mu: Math.pow(10, +ui("mu").value),
     tau: ui("tau").value>=1.69 ? 0 : Math.pow(10, +ui("tau").value),
-    edge: ui("edge").value==="wrap" ? 1 : 0,
+    edge: ui("edge").checked ? 1 : 0,
     amp: +ui("amp").value,
-    auto: +ui("auto").value,
+    auto: ui("auto").checked ? 1 : 0,
     capF: (+ui("cap").value)*1e-6,
     thalf: halfLife(),
     N: +ui("n").value,
     spread: +ui("spread").value,
-    rein: +ui("rein").value
+    rein: +ui("rein").value,
+    glide: +ui("glide").value
   });
 }
 
@@ -880,6 +1063,13 @@ function labels(){
   ui("reinL").textContent = re===0 ? "off (tubes fixed)" : re.toFixed(2);
   const c=+ui("cap").value;
   ui("capL").textContent = c===0 ? "none" : c.toFixed(2)+" µF";
+  const g=+ui("glide").value;
+  ui("glideL").textContent = g===0 ? "off" : Math.round(g*1000)+" ms";
+  const vd=+ui("veld").value;
+  ui("veldL").textContent = vd===0 ? "fixed" : Math.round(vd*100)+"%";
+  ui("edgeL").textContent = ui("edge").checked ? "wrap" : "clamp";
+  ui("autoL").textContent = ui("auto").checked ? "on" : "off";
+  for(const d of document.querySelectorAll(".dial")) setKnob(d);
 }
 
 let qs=new Float32Array(1), ds=new Float32Array([1]), mNow=0, pkNow=0;
@@ -904,22 +1094,59 @@ async function start(){
   node.port.postMessage({lut:LUT});
   params();
   ui("start").textContent="Audio running";
-  ui("ctxVal").textContent="running";
+  ui("ctxChip").textContent="running";
+  ui("ctxChip").classList.add("on");
   ui("osVal").textContent = "8× @ "+ctx.sampleRate+" Hz";
 }
 
-function noteOn(midi){
-  if(!ctx){ start().then(()=>noteOn(midi)); return; }
-  held.add(midi);
-  node.port.postMessage({noteOn: 440*Math.pow(2,(midi-69)/12)});
-  paintKeys();
+/* ---- performance: keys, QWERTY, MIDI, ribbon ---------------------------- */
+/* Monophonic on purpose. One element means one history, and one history is what
+   makes the wear legible, so the note model is last-note priority rather than a
+   voice pool. Everything below decides which single note is sounding. */
+const QMAP={a:0,w:1,s:2,e:3,d:4,f:5,t:6,g:7,y:8,h:9,u:10,j:11,k:12,o:13,l:14,p:15};
+const order=[];                    // held notes, most recent last
+const sustained=new Set(), vels=new Map(), qHeld=new Map();
+let octave=0, bend=0, sustainOn=false, ribHz=null, ribVel=0.85;
+
+const hzOf = m => 440*Math.pow(2,(m-69+bend)/12);
+/* Velocity enters the drive amplitude, so it enters the state the way amplitude
+   does and changes harmonic content by physics. With Auto level on it moves
+   timbre without moving loudness. */
+const velAmt = v => 1 + (+ui("veld").value)*(v-1);
+
+function sound(){
+  if(!node) return;
+  if(ribHz!=null){ node.port.postMessage({noteOn:ribHz, vel:velAmt(ribVel)}); return; }
+  const m = order.length ? order[order.length-1] : null;
+  if(m==null) node.port.postMessage({noteOff:1});
+  else node.port.postMessage({noteOn:hzOf(m), vel:velAmt(vels.get(m)!=null?vels.get(m):0.8)});
+}
+
+function noteOn(midi, vel){
+  if(!ctx){ start().then(()=>noteOn(midi,vel)); return; }
+  vels.set(midi, vel==null?0.8:vel);
+  sustained.delete(midi);
+  const i=order.indexOf(midi); if(i>=0) order.splice(i,1);
+  order.push(midi);
+  sound(); paintKeys();
 }
 function noteOff(midi){
-  held.delete(midi);
-  if(held.size===0){ if(node) node.port.postMessage({noteOff:1}); }
-  else node.port.postMessage({noteOn: 440*Math.pow(2,([...held].pop()-69)/12)});
-  paintKeys();
+  if(sustainOn && order.includes(midi)){ sustained.add(midi); return; }
+  const i=order.indexOf(midi); if(i>=0) order.splice(i,1);
+  vels.delete(midi); sustained.delete(midi);
+  sound(); paintKeys();
 }
+function setSustain(on){
+  if(on===sustainOn) return;
+  sustainOn=on;
+  ui("susChip").classList.toggle("on", on);
+  if(!on){
+    for(const m of sustained){ const i=order.indexOf(m); if(i>=0) order.splice(i,1); vels.delete(m); }
+    sustained.clear(); sound(); paintKeys();
+  }
+}
+function allOff(){ order.length=0; sustained.clear(); vels.clear(); qHeld.clear(); sound(); paintKeys(); }
+function showOct(){ ui("octChip").textContent = "oct "+(octave>0?"+":"")+octave; }
 
 function buildKeys(){
   const host=ui("keys");
@@ -927,26 +1154,171 @@ function buildKeys(){
     const b=document.createElement("button");
     b.textContent = NOTES[m%12]+(Math.floor(m/12)-1);
     b.dataset.midi=m;
-    b.addEventListener("pointerdown",e=>{e.preventDefault();noteOn(m);});
+    if(NOTES[m%12].length>1) b.classList.add("acc");
+    b.addEventListener("pointerdown",e=>{
+      e.preventDefault();
+      try{ b.setPointerCapture(e.pointerId); }catch(_){}
+      // vertical position inside the key is velocity, the way a ribbon reads it
+      const r=b.getBoundingClientRect();
+      noteOn(m, Math.max(0.15, Math.min(1, (e.clientY-r.top)/r.height)));
+    });
     b.addEventListener("pointerup",()=>noteOff(m));
-    b.addEventListener("pointerleave",()=>{ if(held.has(m)) noteOff(m); });
+    b.addEventListener("pointercancel",()=>noteOff(m));
+    b.addEventListener("pointerleave",()=>{ if(order.includes(m)) noteOff(m); });
     host.appendChild(b);
   }
 }
 function paintKeys(){
-  for(const b of ui("keys").children)
-    b.classList.toggle("lit", held.has(+b.dataset.midi));
+  for(const b of ui("keys").children){
+    const m=+b.dataset.midi;
+    b.classList.toggle("lit", order.includes(m));
+    b.classList.toggle("held", sustained.has(m));
+  }
 }
 
 addEventListener("keydown",e=>{
-  if(e.repeat || e.target.tagName==="INPUT" || e.target.tagName==="SELECT") return;
-  const i=KEYROW.indexOf(e.key.toLowerCase());
-  if(i>=0) noteOn(60+i);
+  if(e.repeat) return;
+  const t=e.target.tagName;
+  if(t==="INPUT"||t==="SELECT"||t==="TEXTAREA") return;
+  const k=e.key.toLowerCase();
+  if(k==="z"){ octave=Math.max(-3,octave-1); showOct(); return; }
+  if(k==="x"){ octave=Math.min(3,octave+1); showOct(); return; }
+  if(k===" "){ e.preventDefault(); setSustain(true); return; }
+  if(k in QMAP && !qHeld.has(k)){
+    // remember the note this key started, so shifting octave while held still
+    // releases the note that is actually sounding
+    const m=60+octave*12+QMAP[k];
+    qHeld.set(k,m); noteOn(m,0.8);
+  }
 });
 addEventListener("keyup",e=>{
-  const i=KEYROW.indexOf(e.key.toLowerCase());
-  if(i>=0) noteOff(60+i);
+  const k=e.key.toLowerCase();
+  if(k===" "){ setSustain(false); return; }
+  if(qHeld.has(k)){ noteOff(qHeld.get(k)); qHeld.delete(k); }
 });
+addEventListener("blur",()=>allOff());
+
+/* ---- Web MIDI ----------------------------------------------------------- */
+function initMIDI(){
+  const chip=ui("midiStat");
+  if(!navigator.requestMIDIAccess){ chip.textContent="MIDI unsupported"; return; }
+  navigator.requestMIDIAccess().then(acc=>{
+    const bind=()=>{
+      const names=[]; acc.inputs.forEach(i=>{ names.push(i.name); i.onmidimessage=onMIDI; });
+      chip.textContent = names.length ? "MIDI ▸ "+names.join(", ") : "MIDI no device";
+      chip.classList.toggle("on", names.length>0);
+    };
+    bind(); acc.onstatechange=bind;
+  }).catch(()=>{ chip.textContent="MIDI denied"; });
+}
+function onMIDI(e){
+  const [st,d1,d2]=e.data, cmd=st&0xf0;
+  if(cmd===0x90 && d2>0){
+    if(!ctx) ui("midiStat").textContent="MIDI ▸ click the page to start audio";
+    noteOn(d1, d2/127);
+  }
+  else if(cmd===0x80 || (cmd===0x90&&d2===0)) noteOff(d1);
+  else if(cmd===0xe0){ bend=((((d2<<7)|d1)-8192)/8192)*2; sound(); }   // ±2 semitones
+  else if(cmd===0xb0 && d1===64) setSustain(d2>=64);
+  else if(cmd===0xb0 && (d1===120||d1===123)) allOff();
+}
+
+/* ---- ribbon ------------------------------------------------------------- */
+/* The point of a ribbon here is that pitch is the nonlinearity's own axis: the
+   state excursion goes as 1/f, so sliding along it sweeps the element from dirty
+   to clean continuously. On keys that behaviour is a table; here it is a gesture. */
+const RIB={base:36, oct:4};
+let SURFACE="keys";
+const ribHzAt = (x,w) => 440*Math.pow(2,((RIB.base+(x/w)*RIB.oct*12)-69)/12);
+
+function setSurface(s){
+  SURFACE=s; ribHz=null; allOff();
+  ui("keys").hidden = s!=="ribbon" ? false : true;
+  ui("ribbon").hidden = s!=="ribbon";
+  ui("keysBtn").classList.toggle("lit", s==="keys");
+  ui("ribBtn").classList.toggle("lit", s==="ribbon");
+  ui("surfHint").textContent = s==="keys"
+    ? "Click a key, or play the a w s e d f… row. z and x shift octave, space sustains."
+    : "Drag across the strip. Left to right is pitch, top to bottom is velocity.";
+}
+
+(function ribbonInput(){
+  const c=ui("ribbon");
+  const at=e=>{ const r=c.getBoundingClientRect();
+    return {x:Math.max(0,Math.min(r.width,e.clientX-r.left)), w:r.width,
+            v:Math.max(0.15,Math.min(1,(e.clientY-r.top)/r.height))}; };
+  const set=e=>{ const p=at(e); ribHz=ribHzAt(p.x,p.w); ribVel=p.v; sound(); };
+  c.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    try{ c.setPointerCapture(e.pointerId); }catch(_){}
+    if(!ctx){ start().then(()=>set(e)); return; }
+    set(e);
+  });
+  c.addEventListener("pointermove",e=>{ if(ribHz!=null) set(e); });
+  const up=()=>{ if(ribHz==null) return; ribHz=null; if(node) node.port.postMessage({noteOff:1}); };
+  c.addEventListener("pointerup",up);
+  c.addEventListener("pointercancel",up);
+  c.addEventListener("pointerleave",up);
+})();
+
+/* ---- dials -------------------------------------------------------------- */
+/* Every dial wraps a real <input type=range>. The input stays in the DOM, keeps
+   its keyboard behaviour and its accessible name, and is the thing every existing
+   listener is bound to; the knob is a skin over it that writes back through the
+   same input event. Rotary controls were the ask, not a rotary reimplementation
+   of a slider. */
+const KNOB_SWEEP = 280;                       // degrees, -140 to +140
+
+function setKnob(d){
+  const inp=d.querySelector("input"), k=d.querySelector(".knob");
+  if(!inp||!k) return;
+  const lo=+inp.min, hi=+inp.max, t=(+inp.value-lo)/(hi-lo||1);
+  k.style.setProperty("--t", t.toFixed(4));
+  k.style.setProperty("--deg", (-KNOB_SWEEP/2 + t*KNOB_SWEEP).toFixed(2)+"deg");
+}
+
+function wireDials(){
+  for(const d of document.querySelectorAll(".dial")){
+    const inp=d.querySelector("input"), k=d.querySelector(".knob");
+    setKnob(d);
+    inp.addEventListener("input", ()=>setKnob(d));
+    let last=null;
+    const step=+inp.step||0.01, span=(+inp.max)-(+inp.min);
+    k.addEventListener("pointerdown", e=>{
+      e.preventDefault(); last=e.clientY;
+      try{ k.setPointerCapture(e.pointerId); }catch(_){}
+      inp.focus();
+    });
+    k.addEventListener("pointermove", e=>{
+      if(last===null) return;
+      // vertical drag, 180 px for the full sweep, finer with shift held
+      const dy=last-e.clientY; last=e.clientY;
+      const delta=(dy/180)*span*(e.shiftKey?0.25:1);
+      let v=+inp.value+delta;
+      v=Math.round(v/step)*step;
+      v=Math.max(+inp.min, Math.min(+inp.max, v));
+      if(v!==+inp.value){ inp.value=v; inp.dispatchEvent(new Event("input",{bubbles:true})); }
+    });
+    const up=e=>{ last=null; try{ k.releasePointerCapture(e.pointerId); }catch(_){} };
+    k.addEventListener("pointerup", up);
+    k.addEventListener("pointercancel", up);
+    k.addEventListener("dblclick", ()=>{
+      const def=inp.getAttribute("value");
+      if(def===null) return;
+      inp.value=def; inp.dispatchEvent(new Event("input",{bubbles:true}));
+    });
+  }
+}
+
+/* The colony's plumbing is the page's plumbing: the vein beside the controls
+   thickens with the element count and the reinforcement. Set on change only —
+   nothing here animates on its own. */
+function setVeins(){
+  const n=+ui("n").value, re=+ui("rein").value;
+  const v1=document.getElementById("v1"), v2=document.getElementById("v2");
+  if(v1) v1.setAttribute("stroke-width", (2.2 + n*0.55 + re*2.4).toFixed(2));
+  if(v2) v2.setAttribute("stroke-width", (1.1 + n*0.28 + re*1.5).toFixed(2));
+}
 
 /* ---- drawing ------------------------------------------------------------ */
 const CSS = {};
@@ -1021,7 +1393,7 @@ function drawCurve(){
   g.stroke();
 
   // one marker per element, sized by tube thickness
-  const wrap = ui("edge").value==="wrap";
+  const wrap = ui("edge").checked;
   for(let e=0;e<qs.length;e++){
     let u=(qs[e]+1)/2; u = wrap ? u-Math.floor(u) : Math.max(0,Math.min(1,u));
     const a=LUT[Math.round(u*(LUTN-1))], ww=wearAt(u);
@@ -1117,6 +1489,40 @@ function drawLoop(){
   ui("pinchPct").textContent = (m.pinch*100).toFixed(1)+"%";
 }
 
+function drawRibbon(){
+  const cv=ui("ribbon");
+  if(cv.hidden) return;
+  const {g,w,h}=fit(cv);
+  g.clearRect(0,0,w,h);
+  // the strip itself: metal at the low end where the element distorts hardest,
+  // tissue at the top where it passes clean
+  const grad=g.createLinearGradient(0,0,w,0);
+  grad.addColorStop(0,   "hsl(27 46% 22%)");
+  grad.addColorStop(0.45,"hsl(340 22% 24%)");
+  grad.addColorStop(1,   "hsl(165 36% 20%)");
+  g.fillStyle=grad; g.fillRect(0,0,w,h);
+  const oct=RIB.oct;
+  g.font="10px 'Space Mono',monospace";
+  for(let o=0;o<=oct;o++){
+    const x=o/oct*w;
+    g.strokeStyle= o===0?"transparent":"hsl(46 22% 52% / .38)";
+    g.lineWidth=1; g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke();
+    const m=RIB.base+o*12;
+    g.fillStyle="hsl(46 18% 62%)";
+    g.fillText(NOTES[m%12]+(Math.floor(m/12)-1), x+4, h-6);
+  }
+  if(ribHz!=null){
+    const t=(Math.log2(ribHz/440)*12+69-RIB.base)/(oct*12);
+    const x=t*w, y=(1-ribVel)*h;
+    g.strokeStyle=CSS.slime; g.lineWidth=2;
+    g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke();
+    g.fillStyle=CSS.hot;
+    g.beginPath(); g.arc(x,h-y,7,0,7); g.fill();
+    g.fillStyle="hsl(46 30% 82%)";
+    g.fillText(Math.round(ribHz)+" Hz", Math.min(w-56,x+10), 16);
+  }
+}
+
 function frame(){
   ui("qVal").textContent = qs.length>1
     ? qs[0].toFixed(3)+" … "+qs[qs.length-1].toFixed(3)
@@ -1129,7 +1535,9 @@ function frame(){
   ui("ageVal").textContent = ageNow<90 ? ageNow.toFixed(1)+" s"
     : (ageNow/60).toFixed(1)+" min";
   document.documentElement.style.setProperty("--age", Math.min(1,wMean*1.6).toFixed(3));
-  drawCurve(); drawLoop(); drawScope();
+  const gg=document.getElementById("wearGauge");
+  if(gg) gg.style.setProperty("--w", Math.min(1,wMean).toFixed(4));
+  drawCurve(); drawLoop(); drawScope(); drawRibbon();
   requestAnimationFrame(frame);
 }
 
@@ -1147,10 +1555,10 @@ function applyPreset(i){
   const p=PRESETS[i]; if(!p) return;
   const cfg=Object.assign({}, BASE, p);
   ui("eq").value=p.eq;
-  ui("mu").value=cfg.mu; ui("tau").value=cfg.tau; ui("edge").value=cfg.edge;
+  ui("mu").value=cfg.mu; ui("tau").value=cfg.tau; ui("edge").checked = cfg.edge==="wrap";
   ui("sen").value=cfg.sen; ui("n").value=cfg.n; ui("spread").value=cfg.spread;
   ui("rein").value=cfg.rein; ui("cap").value=cfg.cap; ui("amp").value=cfg.amp;
-  pushLUT(); labels(); params();
+  pushLUT(); labels(); params(); setVeins();
 }
 
 ui("eq").addEventListener("input", pushLUT);
@@ -1158,8 +1566,11 @@ ui("preset").addEventListener("change", e=>{
   if(e.target.value==="") return;
   applyPreset(+e.target.value);
 });
-for(const id of ["mu","tau","amp","edge","auto","cap","sen","n","spread","rein"])
+for(const id of ["mu","tau","amp","edge","auto","cap","sen","n","spread","rein","glide","veld"])
   ui(id).addEventListener("input", ()=>{ labels(); params(); });
+for(const id of ["n","rein"]) ui(id).addEventListener("input", setVeins);
+ui("keysBtn").addEventListener("click", ()=>setSurface("keys"));
+ui("ribBtn").addEventListener("click", ()=>setSurface("ribbon"));
 ui("gain").addEventListener("input", e=>{
   labels(); if(gainNode) gainNode.gain.value=+e.target.value;
 });
@@ -1178,7 +1589,8 @@ function typeset(){
   katex.render("i=\\dfrac{1}{N}\\sum_e i_e+C\\dfrac{dv}{dt}", ui("tex3"), opt);
 }
 
-readCSS(); buildPresets(); buildKeys(); labels(); pushLUT(); typeset(); frame();
+readCSS(); buildPresets(); buildKeys(); wireDials(); setVeins(); showOct();
+setSurface("keys"); labels(); pushLUT(); typeset(); initMIDI(); frame();
 </script>
 </body>
 </html>

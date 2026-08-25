@@ -83,6 +83,42 @@ was.** Senescence drives the element toward memorylessness and the Mould dial
 supplies the capacitance, so the false positive is the instrument's own
 end state rather than an external comparison.
 
+## Playing it
+
+Monophonic, and that is the one thing not copied from the siblings: one element
+means one history, and one history is what makes the wear legible. The note model
+is last-note priority rather than a voice pool.
+
+- **Keys** — 25 contacts, C3 to C5. Where you press vertically inside a key is
+  velocity, the way a ribbon reads it.
+- **QWERTY** — `a w s e d f t g y h u j k o l p`, sixteen semitones. `z` and `x`
+  shift octave, space is a sustain pedal. The key remembers which note it
+  started, so shifting octave while a note is held still releases the note that
+  is actually sounding.
+- **MIDI** — notes with velocity, pitch bend at ±2 semitones, sustain on CC64,
+  and all-notes-off on CC120/123. The status chip follows `onstatechange`, so
+  plugging a device in mid-session picks it up. States are unsupported, denied,
+  no device, and the device list.
+- **Ribbon** — a continuous strip, four octaves from C2, with velocity on the
+  vertical. This is the surface the instrument actually wants: state excursion
+  goes as 1/f, so sliding along the ribbon sweeps the element from dirty to clean
+  without a step anywhere. On keys that behaviour is a table in this file; on the
+  ribbon it is a gesture.
+- **Glide** — 0 to 400 ms, logarithmic in pitch. Glide applies between notes and
+  not out of silence, so a phrase does not open on a portamento from whatever was
+  played last. Frequency updates once per block; phase is integrated, so a
+  frequency step between blocks cannot click.
+- **Velocity depth** — velocity multiplies the drive amplitude, which is
+  `suite.md`'s "velocity becomes a physical timbre axis rather than a mapped one"
+  taken literally rather than mapped to a filter. Verified bit-for-bit: velocity
+  0.5 at amplitude 1 renders identically to amplitude 0.5 at velocity 1. With
+  Auto level on this changes harmonic content without changing loudness, so
+  playing harder changes the timbre and not the volume.
+
+Not built, and deliberately: polyphony, and aliquoto's MIDI file import. The
+second one is worth revisiting, because a scheduled note sequence is exactly what
+the untested cross-note memory claim needs.
+
 ## Verified 2026-08-25
 
 All figures measured by rendering the shipping worklet in an `OfflineAudioContext`
@@ -215,6 +251,22 @@ The fifth was found this session.
    resistor's memory reading fell from 0.03% to 0.01%, and the RC case moved from
    59.11% to 57.42% against a closed-form 57.4%.
 
+6. **The entire surface treatment was invisible, and every structural check
+   still passed** *(found 2026-08-25, second pass)*. Each shell paints its
+   surface on a `.skin` backdrop layer so the tear filter can run on the skin
+   alone; a later rule, `.organism > *, .cell > *, .deck > * { position:relative }`,
+   was meant to lift content above that layer and instead overrode the skin's own
+   `position:absolute`, since it is the more specific selector. Every skin
+   computed to 0x0 and painted nothing. The page looked structurally correct
+   under every DOM check I had — ids present, no overflow, no console errors,
+   canvases painting — because none of those measure whether a background exists.
+   Caught only by measuring the skins' bounding boxes directly. The rule now
+   excludes `.skin`.
+7. **Presets did not refresh the veins** *(same session)*. The vein thickness is
+   bound to the `input` event on the colony controls, and `applyPreset` sets the
+   values without dispatching it, so loading the Colony preset moved every control
+   and left the plumbing thin. `applyPreset` now calls `setVeins` directly.
+
 And one process note carried forward: a **stale cached page** once produced a
 false negative that read as a broken AGC. Append a cache-busting query string when
 re-testing after an edit; a plain reload of the same URL is not enough.
@@ -256,13 +308,19 @@ re-testing after an edit; a plain reload of the same URL is not enough.
   runs and the live readouts and `--age` bloom cannot be observed under
   automation. The canvases were confirmed to paint by counting lit pixels with the
   draw functions called directly.
+- **MIDI has never touched a device.** The implementation follows the pattern in
+  `aliquoto`, `cella` and `moire`, and the automation browser denies the Web MIDI
+  permission, so what has been verified is the denial path printing "MIDI denied"
+  rather than throwing. Notes, velocity, bend, sustain and hot-plug re-binding are
+  all unexercised against real hardware.
 - **Cross-note memory is untested.** Wear *within* a held note is measured; the
   claim that the element arrives at each note already worn by the previous one is
   reasonable from the ODE but was not verified. Needs a scheduled note sequence.
   Senescence makes this more interesting and more worth doing.
 - **The 55 Hz provenance question**, above.
-- Monophonic. No preset browser beyond the nine built in, no save/recall, no MIDI,
-  no envelope beyond a fixed 4 ms attack and 250 ms release.
+- Monophonic, deliberately. No preset browser beyond the nine built in, no
+  save/recall, no MIDI file import, no envelope beyond a fixed 4 ms attack and
+  250 ms release.
 
 ## Relation to the rest
 
@@ -364,3 +422,57 @@ property.
 still not built and are now the Next in Dev. Nobody has looked at the reskin; the
 browser pane has not been displayable in any session, so there is still no
 screenshot and no aesthetic verdict on the new surface.
+
+2026-08-25 — Claude Code — **Second reskin pass and the full input treatment**, on
+Xyh's ask: the first skin was fine but tame, and the instrument had no performance
+inputs worth the name. Direction was his — biometallic, and not much animation.
+
+The first skin took the tarnish half of the brief and skipped the instruction that
+matters most in [xyh-design-calibration.md](../../principles/xyh-design-calibration.md):
+the constructive inverse, *house the controls inside a continuous organic body,
+the container is alive*. It was still a rail of rectangles with soft corners. What
+is there now:
+
+- **Torn edges instead of rounded ones.** `feTurbulence` into `feDisplacementMap`,
+  run on a `.skin` backdrop layer rather than on the shell, so the membrane is
+  ragged and the type and controls stay crisp. Displacing the shell itself would
+  drag the text with it.
+- **One organism.** The rail is a single body; the four groups are chambers inside
+  it divided by a septum rather than separate panels with gaps. A vein runs beside
+  them, and it **thickens with the colony** — element count and reinforcement set
+  its stroke width, so the page's plumbing is the instrument's. Set on change
+  only; nothing animates on its own.
+- **The control vocabulary the calibration note says has vanished.** Rotary dials,
+  rocker switches for the two binary settings, a needle gauge for substrate wear,
+  and the equation as a card slotted into the plate. Each dial **wraps a real
+  `input type=range`** — clipped rather than hidden, so it keeps its keyboard
+  behaviour and its accessible name, and every existing listener stays bound to
+  it. The knob writes back through the same `input` event. Drag vertically, shift
+  for fine, double-click to reset.
+- **Strange placement, in the sense the note means.** The Mould dial now sits in
+  the hysteresis panel and the Senescence dial and wear gauge sit in the substrate
+  panel, because each is a control whose entire evidence is the display beside it.
+  Drive returned to the rail; only the genuinely performative controls, glide and
+  velocity, live on the deck.
+- **Biometallic** rather than tarnish alone: a flesh hue at 340 sits in the seam
+  where the bronze turns soft, between the amber and the verdigris. Knobs are
+  metal rims around wet tissue.
+
+Two defects found, both by measuring rather than by looking — #6 and #7 above. #6
+is the instructive one: **the skins never painted at all, and every check I had
+still passed.** Ids present, no overflow, no console errors, canvases painting,
+fonts loaded, layout balanced — none of which can see that a background is
+missing. Under a displayed browser pane this would have been obvious in a second.
+It is the clearest cost yet of working without a visible pane, and the lesson is
+that DOM checks verify structure and cannot verify surface: measure the thing you
+actually claim, which here meant the skins' own bounding boxes.
+
+Input treatment is above under **Playing it**. The offline suite grew to **42
+checks, all passing**, including velocity being bit-for-bit identical to the
+equivalent amplitude and glide not applying out of silence.
+
+**Undone:** the surface is still unseen — the browser pane has not been
+displayable in any of four sessions, so there is no screenshot and no aesthetic
+verdict, and #6 means "structurally verified" has now been demonstrated to be a
+weaker claim here than it sounds. MIDI has never touched a device. Per-partial
+elements remain the Next in Dev.
