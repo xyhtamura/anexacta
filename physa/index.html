@@ -453,6 +453,266 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
 @media(prefers-reduced-motion:reduce){
   button, .lever b{transition:none}
 }
+
+/* ---------- soft ecology terminal ---------------------------------------
+   Kioskarium is the closer reference: milk-plastic cabinets, olive housings,
+   gel controls and CRT-green specimen windows. Physa keeps the conductive
+   traces and state-dependent bloom, but the palette is keyed to a damp field
+   terminal rather than to the suite fallback hues. */
+body{
+  --plate:#172219;
+  --plate2:#293827;
+  --plate-d:#11150f;
+  --tissue:#e7e0b2;
+  --tissue2:#c8cc8e;
+  --tissue-d:#788263;
+  --tissue-hi:#fff8d3;
+  --flesh:#d58bab;
+  --flesh-d:#6c355b;
+  --flesh-hi:#ffc3dd;
+  --ink:#172219;
+  --dim:#58654e;
+  --faint:#74806a;
+  --pale:#f4edca;
+  --bronze:#a78b45;
+  --bronze-d:#50441f;
+  --bronze-hi:#f3d879;
+  --verd:#4cae92;
+  --verd-hi:#94ead8;
+  --verd-d:#214c3f;
+  --iris:#b991cf;
+  --slime:#d5ef74;
+  --slime-d:#778e31;
+  --hot:#f08a72;
+  --edge:#43543c;
+  --edge2:#20291d;
+  color:var(--ink);
+  padding:10px 0 24px;
+  background:
+    radial-gradient(circle at 12% 10%,rgba(238,159,195,.22),transparent 19rem),
+    radial-gradient(circle at 82% 8%,rgba(137,229,213,.2),transparent 23rem),
+    radial-gradient(circle at 69% 90%,rgba(204,231,101,.18),transparent 28rem),
+    linear-gradient(138deg,#161d14,#29361f 37%,#1d1930 100%);
+}
+body::before{
+  opacity:.34;
+  mix-blend-mode:screen;
+  background-image:
+    repeating-linear-gradient(0deg,rgba(247,240,204,.032),rgba(247,240,204,.032) 1px,transparent 1px,transparent 4px),
+    radial-gradient(circle at 18% 64%,rgba(238,159,195,.11),transparent 18rem),
+    radial-gradient(circle at 83% 25%,rgba(137,229,213,.1),transparent 21rem);
+}
+body::after{
+  opacity:calc(.04 + var(--age) * .33);
+  mix-blend-mode:screen;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='680' height='680'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.009 .014' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 .76  0 0 0 0 .9  0 0 0 0 .29  0 0 0 -1.35 .68'/></filter><rect width='100%25' height='100%25' filter='url(%23b)'/></svg>");
+}
+.terminal{
+  width:min(1560px,calc(100% - 22px));
+  margin:0 auto;
+  padding:12px;
+  position:relative;
+  z-index:1;
+  border:1px solid rgba(247,240,204,.3);
+  border-radius:30px 25px 34px 24px;
+  background:
+    radial-gradient(circle at 5% 5%,rgba(255,255,255,.32),transparent 13rem),
+    radial-gradient(circle at 96% 91%,rgba(238,159,195,.14),transparent 17rem),
+    linear-gradient(145deg,rgba(239,233,193,.52),rgba(83,107,52,.4) 21%,rgba(64,52,83,.44) 78%,rgba(16,20,13,.76));
+  box-shadow:0 32px 82px rgba(0,0,0,.44),inset 0 2px 0 rgba(255,255,255,.24),inset 0 -34px 64px rgba(0,0,0,.22);
+}
+.terminal::before{
+  content:"";
+  position:absolute;
+  inset:7px;
+  border:1px solid rgba(255,190,218,.3);
+  border-radius:25px 20px 29px 19px;
+  box-shadow:inset 0 0 0 2px rgba(23,34,25,.25),inset 0 0 34px rgba(137,229,213,.08);
+  pointer-events:none;
+}
+
+.terminal header{
+  margin:0;
+  grid-template-columns:minmax(15rem,.72fr) minmax(28rem,1.45fr) minmax(12rem,.55fr);
+  gap:12px;
+  padding:13px;
+  border:1px solid rgba(247,240,204,.34);
+  border-radius:23px 20px 24px 18px;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 14px,rgba(247,240,204,.04) 14px 15px),
+    radial-gradient(circle at 84% 35%,rgba(238,159,195,.2),transparent 15rem),
+    linear-gradient(102deg,rgba(27,37,26,.86),rgba(73,61,91,.6) 46%,rgba(87,112,55,.58));
+  box-shadow:inset 0 1px rgba(255,255,255,.2),inset 0 -18px 34px rgba(0,0,0,.16);
+  overflow:hidden;
+}
+.terminal header::after{display:none}
+.terminal .nameplate{
+  padding:10px 16px 12px;
+  border:0;
+  border-radius:18px;
+  background:none;
+  box-shadow:none;
+  overflow:visible;
+}
+.terminal .nameplate::after{display:none}
+.terminal .brand{
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(3.4rem,5.7vw,6.6rem);
+  font-weight:500;
+  line-height:.78;
+  letter-spacing:-.075em;
+  color:#f7f0cc;
+  text-shadow:2px 2px 0 rgba(238,145,188,.72),-2px -1px 0 rgba(132,225,210,.55),0 9px 17px rgba(0,0,0,.42);
+}
+.terminal .brand span{color:inherit;text-shadow:inherit}
+.terminal .tag{margin-top:12px;color:rgba(247,240,204,.73);letter-spacing:.15em}
+.terminal .defn{
+  padding:13px 16px;
+  border:1px solid rgba(247,240,204,.23);
+  border-radius:19px 24px 17px 22px;
+  background:
+    repeating-linear-gradient(0deg,rgba(247,240,204,.045) 0 1px,transparent 1px 4px),
+    radial-gradient(circle at 82% 23%,rgba(238,145,188,.13),transparent 10rem),
+    linear-gradient(160deg,rgba(21,45,36,.92),rgba(19,29,21,.94));
+  box-shadow:inset 0 0 0 5px rgba(247,240,204,.04),inset 0 0 25px rgba(0,0,0,.36);
+}
+.terminal .defn .who{color:#a7eddb}
+.terminal .defn .tex{color:#f5edca}
+.terminal .hactions{min-width:0}
+.terminal .chip{color:rgba(247,240,204,.75);border-color:rgba(247,240,204,.22);background:rgba(0,0,0,.24);border-radius:999px}
+
+.terminal main{
+  grid-template-columns:clamp(300px,24vw,366px) minmax(0,1fr);
+  gap:11px;
+  padding:11px 0 0;
+}
+.terminal .organism{padding:10px;isolation:isolate}
+.terminal .organism > .veins{position:absolute;z-index:2;left:-10px;width:27px}
+.terminal .organism > .skin{
+  filter:none;
+  border:1px solid rgba(23,34,25,.34);
+  border-radius:27px 20px 30px 18px;
+  background:
+    radial-gradient(circle at 12% 4%,rgba(255,255,255,.55),transparent 11rem),
+    radial-gradient(circle at 90% 94%,rgba(238,145,188,.18),transparent 13rem),
+    linear-gradient(145deg,rgba(247,240,204,.9),rgba(205,210,151,.86) 62%,rgba(118,137,93,.83));
+  box-shadow:inset 0 1px rgba(255,255,255,.56),inset 0 -27px 44px rgba(72,82,49,.15),0 15px 28px rgba(0,0,0,.22);
+}
+.terminal .organism > .skin::before{
+  inset:8px;
+  border:1px dashed rgba(23,34,25,.19);
+  background:none;
+  opacity:1;
+}
+.terminal .organism > .skin::after{background:linear-gradient(90deg,transparent,#79cbb6,#d08aad,transparent);opacity:.34;box-shadow:none}
+.terminal .chamber{color:#172219;padding:16px 15px 17px}
+.terminal .chamber + .chamber{border-image:linear-gradient(90deg,transparent,rgba(23,34,25,.28) 17%,rgba(23,34,25,.28) 83%,transparent) 1}
+.terminal h2{color:#33442d}
+.terminal h2::after{height:1px;background:linear-gradient(90deg,rgba(23,34,25,.48),rgba(83,110,48,.25),transparent)}
+.terminal .cap{color:#44533d}
+.terminal .cap b{color:#1b2918}
+.terminal .cap code{color:#315d4f}
+.terminal .slot{background:rgba(40,46,31,.45);box-shadow:inset 0 3px 7px rgba(0,0,0,.27),0 1px rgba(255,255,255,.65)}
+.terminal input[type=text],.terminal .pick select{
+  color:#192418;
+  border-color:rgba(24,37,20,.36);
+  background:linear-gradient(180deg,#f8f0c7,#d9d98f 68%,#a59a57);
+  box-shadow:inset 0 1px rgba(255,255,255,.62),inset 0 -6px 11px rgba(84,77,37,.13);
+}
+.terminal .pick select{
+  background:
+    linear-gradient(135deg,transparent 0 44%,#315d4f 45% 55%,transparent 56%) right 15px top 53%/7px 7px no-repeat,
+    linear-gradient(225deg,transparent 0 44%,#315d4f 45% 55%,transparent 56%) right 10px top 53%/7px 7px no-repeat,
+    linear-gradient(180deg,#f8f0c7,#d9d98f 68%,#a59a57);
+}
+.terminal #eqErr{color:#9b3b35}
+.terminal .dl{color:#26371f}
+.terminal .dv{color:#315d4f}
+
+.terminal .stage{gap:10px}
+.terminal .bank{grid-template-columns:minmax(0,1.18fr) minmax(270px,.82fr);gap:10px}
+.terminal .cell,.terminal .deck{padding:13px 14px 14px;isolation:isolate}
+.terminal .cell > .skin,.terminal .deck > .skin{
+  filter:none;
+  border:1px solid rgba(247,240,204,.34);
+  border-radius:29px 22px 31px 19px;
+  background:
+    radial-gradient(circle at 12% 7%,rgba(255,255,255,.43),transparent 11rem),
+    radial-gradient(circle at 94% 91%,rgba(238,145,188,.18),transparent 12rem),
+    linear-gradient(145deg,rgba(150,222,204,.58),rgba(239,233,193,.39) 46%,rgba(87,70,107,.49));
+  box-shadow:inset 0 2px 1px rgba(255,255,255,.4),inset 0 -26px 42px rgba(27,31,22,.16),0 14px 25px rgba(0,0,0,.2);
+}
+.terminal .cell > .skin::before,.terminal .deck > .skin::before{background:none;border:1px solid rgba(255,255,255,.16);opacity:1}
+.terminal .cell > .skin::after,.terminal .deck > .skin::after{display:none}
+.terminal .cell:nth-child(2) > .skin{background:radial-gradient(circle at 17% 5%,rgba(255,255,255,.44),transparent 9rem),linear-gradient(145deg,rgba(234,213,147,.7),rgba(216,141,174,.42),rgba(73,57,94,.58))}
+.terminal .cell:nth-child(3) > .skin{background:radial-gradient(circle at 84% 7%,rgba(255,255,255,.35),transparent 9rem),linear-gradient(145deg,rgba(126,205,184,.61),rgba(89,117,73,.44),rgba(54,43,72,.58))}
+.terminal .cell h2,.terminal .deck h2{color:rgba(247,240,204,.8)}
+.terminal .cell h2::after,.terminal .deck h2::after{background:linear-gradient(90deg,rgba(247,240,204,.42),rgba(137,229,213,.27),transparent)}
+.terminal .cell .cap,.terminal .deck .cap{color:rgba(247,240,204,.76)}
+.terminal .cell .cap b,.terminal .deck .cap b{color:#fff8d4}
+.terminal .cell .cap code,.terminal .deck .cap code{color:#a7eddb}
+.terminal .inset{border-color:rgba(247,240,204,.28);background:rgba(22,35,26,.48);border-radius:18px;box-shadow:inset 0 1px rgba(255,255,255,.13)}
+.terminal .inset .dl{color:#f4edca}
+.terminal .inset .dv{color:#a7eddb}
+.terminal canvas{
+  border:1px solid rgba(24,37,20,.5);
+  border-radius:21px;
+  background:
+    repeating-linear-gradient(0deg,rgba(247,240,204,.045) 0 1px,transparent 1px 4px),
+    radial-gradient(circle at 58% 46%,rgba(238,145,188,.17),transparent 10rem),
+    radial-gradient(circle at 29% 62%,rgba(137,229,213,.16),transparent 11rem),
+    linear-gradient(180deg,#20362a,#101c14);
+  box-shadow:inset 0 0 0 6px rgba(247,240,204,.045),inset 0 0 34px rgba(0,0,0,.42),0 9px 18px rgba(0,0,0,.18);
+}
+.terminal .legend{color:rgba(247,240,204,.76)}
+.terminal .readout{border-color:rgba(24,37,20,.2)}
+.terminal .readout span:first-child{color:#4b5d45}
+.terminal .readout span:last-child{color:#285e4d}
+
+.terminal .knob{
+  border-color:rgba(24,37,20,.45);
+  background:radial-gradient(circle at 32% 21%,rgba(255,255,255,.78),transparent 18%),linear-gradient(145deg,#f7edbd,#9bcf9d 50%,#655174);
+  box-shadow:inset 0 2px 1px rgba(255,255,255,.5),inset 0 -9px 14px rgba(42,29,56,.28),0 6px 12px rgba(0,0,0,.24);
+}
+.terminal .knob::after{background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.7),transparent 18%),linear-gradient(145deg,#b7f2df,#709c74 58%,#55405f);box-shadow:inset 0 -5px 8px rgba(0,0,0,.22)}
+.terminal .mould ~ .knob::after{background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.72),transparent 18%),linear-gradient(145deg,#e5f59c,#c79c72 55%,#70425e)}
+.terminal .knob i::before{background:linear-gradient(#fff7c8,#7b8b2e);box-shadow:0 0 6px rgba(209,238,105,.5)}
+.terminal .lever{border-color:rgba(24,37,20,.35);background:#2b3926}
+.terminal .lever b{background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.7),transparent 20%),linear-gradient(145deg,#f4eebc,#8bc6ac 70%,#4f5c38)}
+
+.terminal button{
+  color:#1b2818;
+  border-color:rgba(24,37,20,.37);
+  border-radius:14px 14px 9px 11px;
+  background:radial-gradient(circle at 25% 10%,rgba(255,255,255,.72),transparent 23%),linear-gradient(180deg,#f7edbd,#d2ce70 68%,#96803c);
+  box-shadow:inset 0 1px rgba(255,255,255,.57),inset 0 -7px 11px rgba(66,58,24,.17),0 6px 10px rgba(0,0,0,.17);
+}
+.terminal button:hover{border-color:#4f7d65;box-shadow:inset 0 1px rgba(255,255,255,.65),0 0 0 2px rgba(137,229,213,.26),0 6px 10px rgba(0,0,0,.17)}
+.terminal button.lit{color:#172219;background:radial-gradient(circle at 25% 10%,rgba(255,255,255,.72),transparent 23%),linear-gradient(180deg,#c9f08d,#8fc875 67%,#4d7146);border-color:#4c765d}
+.terminal .deck > .skin{background:radial-gradient(circle at 12% 2%,rgba(255,255,255,.46),transparent 12rem),linear-gradient(145deg,rgba(238,196,215,.7),rgba(152,220,202,.48),rgba(68,55,88,.55))}
+.terminal .keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));align-items:end}
+.terminal .keys button{color:#172219;border-color:rgba(24,37,20,.34);background:radial-gradient(circle at 32% 18%,rgba(255,255,255,.72),transparent 18%),linear-gradient(145deg,#f6efc4,#a7c68c 72%,#5d7047);box-shadow:inset 0 1px rgba(255,255,255,.54),inset 0 -8px 11px rgba(50,59,31,.18),0 5px 8px rgba(0,0,0,.16)}
+.terminal .keys button.acc{color:#f4edca;background:radial-gradient(circle at 32% 18%,rgba(255,255,255,.44),transparent 17%),linear-gradient(145deg,#786184,#3f344f 66%,#202c21);border-color:rgba(247,240,204,.26)}
+.terminal .keys button.lit{color:#17301f;background:linear-gradient(180deg,#ddf78d,#91ce83 67%,#4b7b58);box-shadow:inset 0 1px rgba(255,255,255,.65),0 0 15px rgba(204,231,101,.36)}
+.terminal .keys button.held{color:#3c2434;background:linear-gradient(180deg,#ffd0e4,#d58bab 68%,#855071)}
+.terminal .status > .skin{background:linear-gradient(145deg,rgba(26,53,41,.88),rgba(36,43,29,.82) 55%,rgba(65,48,76,.76))}
+.terminal .status .readout{border-color:rgba(247,240,204,.16)}
+.terminal .status .readout span:first-child{color:rgba(247,240,204,.72)}
+.terminal .status .readout span:last-child{color:#a7eddb}
+
+@media(max-width:1080px){
+  .terminal header{grid-template-columns:minmax(13rem,.72fr) minmax(0,1.35fr)}
+  .terminal .hactions{grid-column:1 / -1;display:grid;grid-template-columns:minmax(12rem,.4fr) 1fr;align-items:center}
+  .terminal main{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  body{padding-top:6px}
+  .terminal{width:calc(100% - 12px);padding:8px}
+  .terminal header{grid-template-columns:1fr}
+  .terminal .defn{order:3}
+  .terminal .hactions{grid-column:auto;display:flex}
+  .terminal .bank{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -477,6 +737,7 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
   </defs>
 </svg>
 
+<div class="terminal">
 <header>
   <div class="nameplate">
     <div class="brand">PHY<span>S</span>A</div>
@@ -521,10 +782,8 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
       <label class="pick">
         <select id="preset" aria-label="preset"><option value="">&mdash; presets &mdash;</option></select>
       </label>
-      <p class="cap"><code>q</code> runs &minus;1 to 1. <code>Math</code> is in scope, so
-      <code>sin</code>, <code>exp</code>, <code>abs</code> and <code>PI</code> all work.
-      Values are clamped to at least 20&thinsp;&Omega;. A preset sets the curve and every
-      control below it.</p>
+      <p class="cap"><code>q</code> runs &minus;1 to 1. Available functions include
+      <code>sin</code>, <code>exp</code>, <code>abs</code> and <code>PI</code>. Minimum 20&thinsp;&Omega;.</p>
     </section>
 
     <section class="chamber">
@@ -547,10 +806,8 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
           <span class="dv" id="edgeL">clamp</span>
         </label>
       </div>
-      <p class="cap"><b>&mu;</b> sets how far a given current moves the charge, and so how
-      much of the curve one cycle sweeps. <b>&tau;</b> pulls the charge back toward zero
-      when nothing drives it: short &tau; holds a steady timbre, long &tau; keeps wearing
-      while a note is held and carries the state into the next note.</p>
+      <p class="cap"><b>Rate</b> sets charge travel. <b>Relax</b> pulls the charge back
+      toward zero.</p>
     </section>
 
     <section class="chamber">
@@ -572,11 +829,8 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
           <span class="dl">Reinforce</span><span class="dv" id="reinL"></span>
         </label>
       </div>
-      <p class="cap">Several elements across the same drive, sharing one substrate.
-      <b>Spread</b> gives them different rates &mu;, so they sit at different points on the
-      curve at once. <b>Reinforcement</b> is Tero's tube law: an element carrying more
-      current thickens and carries more still, an idle one thins back. At 0 the elements
-      are fixed and sum. The vein running beside these controls thickens with them.</p>
+      <p class="cap"><b>Spread</b> separates the elements' rates. <b>Reinforce</b>
+      thickens active paths.</p>
     </section>
 
     <section class="chamber">
@@ -599,12 +853,8 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
           <span class="dv" id="autoL">on</span>
         </label>
       </div>
-      <p class="cap">The current is <code>v/M(q)</code>, so output level tracks
-      <code>1/M</code> and swings as widely as the curve &mdash; 80:1 on the HP preset.
-      Auto level is a slow (80&thinsp;ms) gain that flattens the swing without touching
-      the waveform inside a cycle, so timbre and keyfollow survive it. Velocity and
-      amplitude both enter the drive, so with Auto level on they change harmonic content
-      without changing loudness. Turn it off to hear the raw current.</p>
+      <p class="cap"><b>Amplitude</b> changes drive and timbre. <b>Output</b> sets level.
+      Auto level evens out loudness.</p>
     </section>
    </div>
   </div>
@@ -637,12 +887,8 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
           </div>
         </div>
         <canvas id="curve" width="1040" height="424"></canvas>
-        <p class="cap">M(q) across the charge domain. <b>Dashed</b> is the equation as
-        written, <b>solid</b> is the substrate after wear, and the strip along the bottom is
-        how far each part of the domain has worn. Each marker is one element of the colony,
-        sized by its tube thickness. Playing abrades the curve toward its own mean where the
-        charge dwells; the half-life is nominal, quoted at amplitude 1, and louder playing
-        wears faster. <b>Fresh substrate</b> clears it &mdash; editing the equation does not.</p>
+        <p class="cap"><b>Dashed:</b> authored curve. <b>Solid:</b> worn curve.
+        Fresh substrate clears wear.</p>
       </div>
 
       <div class="cell">
@@ -664,25 +910,16 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
           <span>harmonic <b id="harmPct">&mdash;</b></span>
           <span>pinch <b id="pinchPct">&mdash;</b></span>
         </div>
-        <p class="cap">Current against drive voltage over one cycle, taken before the gain
-        stage. <b>Memory</b> is the share of Fourier energy in coefficients no memoryless
-        device can produce. <b>Harmonic</b> is the share above the fundamental. <b>Pinch</b>
-        is |I| at the voltage zero-crossings, where 0% means the loop passes through the
-        origin. The <b>Mould</b> dial adds a capacitance that carries current and holds no
-        state: raise it and memory climbs while harmonic stays at zero, which is the
-        combination Schmidt et al. measured on <i>Physarum polycephalum</i> in 2025 and
-        reproduced with resistors and capacitors alone.</p>
+        <p class="cap"><b>Memory</b>, <b>harmonic</b> and <b>pinch</b> describe the loop.
+        Mould adds a memoryless parallel capacitance.</p>
       </div>
 
       <div class="cell">
         <span class="skin" aria-hidden="true"></span>
         <div class="cellhead"><h2>Current</h2></div>
         <canvas id="scope" width="880" height="472"></canvas>
-        <p class="cap">Output current. Low notes wear the element further within a cycle and
-        come out dirtier: harmonic content above the fundamental runs 4.5% at 110&nbsp;Hz,
-        0.76% at 220, 0.18% at 440 and 0.04% at 880 &mdash; about a quarter per octave, with
-        no keyfollow rule written anywhere. Below 110&nbsp;Hz it climbs steeply and turns
-        sensitive to &mu;, so treat that end as a setting rather than a property.</p>
+        <p class="cap">Output current. Lower notes sweep more of the element and produce
+        more harmonics.</p>
       </div>
     </div>
 
@@ -725,6 +962,7 @@ footer .sib a:hover{border-color:var(--verd-hi); color:var(--verd-hi)}
     </div>
   </div>
 </main>
+</div>
 
 <script>
 "use strict";

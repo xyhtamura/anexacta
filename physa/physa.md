@@ -476,3 +476,24 @@ displayable in any of four sessions, so there is no screenshot and no aesthetic
 verdict, and #6 means "structurally verified" has now been demonstrated to be a
 weaker claim here than it sounds. MIDI has never touched a device. Per-partial
 elements remain the Next in Dev.
+
+2026-08-25 — Codex — **Rebuilt the surface from the Kioskarium soft-ecology
+terminal reference after Xyh found the biometallic pass too dependent on the
+default fallback palette.** Physa now sits inside one olive field-terminal shell:
+a milk-plastic control cabinet, gel dials and keys, CRT-green plot apertures,
+scanlines, and restrained cyan/pink optical bleed. The title uses the reference's
+large soft serif treatment. Conductive traces and the wear-driven background bloom
+remain, but amber/verdigris/violet no longer organize the page.
+
+Fixed the left-column layout defect visible in the first screenshot: a generic
+child rule had overridden the vein's absolute positioning and inserted a large
+blank block before the first chamber. Replaced the flex keybed with fixed grid
+tracks so the last row no longer expands into four oversized keys. Reduced every
+explanatory panel paragraph to an operational caption; the equations, plots and
+state changes carry the concept.
+
+Verified the displayed page at 1280×720 and as a full-page capture in the in-app
+browser: KaTeX loaded, all 25 keys measured the same width, the left chamber began
+directly below the header, and the console had no errors or warnings. Ran
+`physa/test.html`; all offline checks passed. MIDI hardware and per-partial
+elements remain untested/unbuilt, as above.
