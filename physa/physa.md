@@ -497,3 +497,23 @@ browser: KaTeX loaded, all 25 keys measured the same width, the left chamber beg
 directly below the header, and the console had no errors or warnings. Ran
 `physa/test.html`; all offline checks passed. MIDI hardware and per-partial
 elements remain untested/unbuilt, as above.
+
+2026-08-25 — Codex — **Replaced the performance deck with the suite's full
+piano / hex / ribbon surface and removed the scanline treatment.** The new deck
+combines Moire's one-canvas surface switcher with Aliquoto/Cella's 37-note piano
+range and +2/+1-semitone isomorphic hex mapping. Piano and hex gestures still
+enter Physa's last-note-priority queue; the four-octave ribbon writes continuous
+frequency and velocity into the same single element. QWERTY follows the selected
+surface: the piano uses the `a w s e d f…` row, hex uses four staggered rows, and
+ribbon is pointer-only. The monophonic one-element/one-history model is unchanged.
+
+Removed every `repeating-linear-gradient` from the page, including the ground,
+header, equation display and plot windows. Vendored
+`xyhtamura.github.io/fonts/GOMini-Goofy.ttf` to
+`physa/fonts/GOMini-Goofy.ttf` and made it the display face for the title and
+section labels; Space Mono remains the measurement/control face.
+
+Verified all three modes in the displayed in-app browser: GOMini loaded from the
+vendored file, piano rendered 37 notes, hex rendered 48 close-packed cells,
+ribbon rendered four octaves, switching changed the canvas height and hint, and
+the console stayed clear. `physa/test.html` passed all 42 offline checks.

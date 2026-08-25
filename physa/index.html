@@ -8,10 +8,15 @@
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Averia+Gruesa+Libre&family=Averia+Sans+Libre:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Averia+Sans+Libre:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <style>
+@font-face{
+  font-family:"GOMini Goofy";
+  src:url("./fonts/GOMini-Goofy.ttf") format("truetype");
+  font-display:swap;
+}
 :root{
   /* Biometallic. A bronze plate that did not stop being tissue: oxide interference
      runs amber -> verdigris -> violet unaided, which lands the 45/165/285 fallback
@@ -35,7 +40,7 @@
   --bad:hsl(352 58% 46%);
 
   --edge:hsl(287 26% 22%); --edge2:hsl(292 42% 5%);
-  --disp:"Averia Gruesa Libre","Averia Libre",Georgia,serif;
+  --disp:"GOMini Goofy","Averia Sans Libre",system-ui,sans-serif;
   --ui:"Averia Sans Libre",system-ui,sans-serif;
   --mono:"Space Mono",ui-monospace,Consolas,monospace;
 
@@ -384,38 +389,6 @@ canvas{width:100%; display:block; border-radius:11px 15px 11px 15px;
 .surf{display:flex; gap:6px}
 .dials.perf{gap:12px 18px}
 
-.keys{display:flex; gap:4px; flex-wrap:wrap}
-.keys[hidden]{display:none}
-/* contacts set into the plate rather than piano keys */
-.keys button{
-  flex:1 1 36px; width:auto; padding:16px 0 15px; font-size:9.5px; letter-spacing:.03em;
-  border-radius:9px 13px 8px 12px;
-  background:linear-gradient(176deg, hsl(36 26% 74%), hsl(20 16% 56%) 60%, hsl(14 20% 38%));
-  color:hsl(292 30% 14%);
-  border-color:hsl(31 40% 20%);
-  box-shadow:inset 0 1px 0 hsl(40 50% 94% / .8), inset 0 -7px 12px hsl(14 28% 30% / .35),
-             0 3px 6px -3px #000;
-}
-.keys button:nth-child(3n){border-radius:13px 9px 12px 8px}
-.keys button:nth-child(4n){border-radius:8px 12px 13px 9px}
-.keys button.acc{
-  background:linear-gradient(176deg, hsl(292 14% 26%), hsl(340 16% 15%) 58%, hsl(292 30% 9%));
-  color:hsl(40 22% 74%);
-  box-shadow:inset 0 1px 0 hsl(346 30% 52% / .35), 0 3px 6px -3px #000;
-}
-.keys button.lit{
-  background:linear-gradient(176deg, hsl(52 88% 70%), hsl(46 74% 44%));
-  color:hsl(50 62% 12%);
-  box-shadow:inset 0 1px 0 hsl(56 92% 92% / .7), 0 0 16px hsl(52 88% 56% / .4);
-}
-.keys button.held{
-  background:linear-gradient(176deg, hsl(165 52% 56%), hsl(168 46% 30%));
-  color:hsl(168 60% 10%);
-  box-shadow:inset 0 1px 0 hsl(165 70% 88% / .6), 0 0 12px hsl(165 62% 48% / .3);
-}
-.ribbon{height:132px; border-radius:14px 20px 14px 20px; cursor:ew-resize; touch-action:none}
-.ribbon[hidden]{display:none}
-
 /* ---------- footrow ---------- */
 .cell.flat{padding:14px 15px 15px}
 .status .readouts{display:flex; flex-wrap:wrap; gap:4px 26px}
@@ -498,7 +471,6 @@ body::before{
   opacity:.34;
   mix-blend-mode:screen;
   background-image:
-    repeating-linear-gradient(0deg,rgba(247,240,204,.032),rgba(247,240,204,.032) 1px,transparent 1px,transparent 4px),
     radial-gradient(circle at 18% 64%,rgba(238,159,195,.11),transparent 18rem),
     radial-gradient(circle at 83% 25%,rgba(137,229,213,.1),transparent 21rem);
 }
@@ -539,7 +511,6 @@ body::after{
   border:1px solid rgba(247,240,204,.34);
   border-radius:23px 20px 24px 18px;
   background:
-    repeating-linear-gradient(0deg,transparent 0 14px,rgba(247,240,204,.04) 14px 15px),
     radial-gradient(circle at 84% 35%,rgba(238,159,195,.2),transparent 15rem),
     linear-gradient(102deg,rgba(27,37,26,.86),rgba(73,61,91,.6) 46%,rgba(87,112,55,.58));
   box-shadow:inset 0 1px rgba(255,255,255,.2),inset 0 -18px 34px rgba(0,0,0,.16);
@@ -556,13 +527,13 @@ body::after{
 }
 .terminal .nameplate::after{display:none}
 .terminal .brand{
-  font-family:Georgia,"Times New Roman",serif;
-  font-size:clamp(3.4rem,5.7vw,6.6rem);
-  font-weight:500;
-  line-height:.78;
-  letter-spacing:-.075em;
+  font-family:var(--disp);
+  font-size:clamp(3.1rem,5.2vw,5.9rem);
+  font-weight:400;
+  line-height:.82;
+  letter-spacing:.015em;
   color:#f7f0cc;
-  text-shadow:2px 2px 0 rgba(238,145,188,.72),-2px -1px 0 rgba(132,225,210,.55),0 9px 17px rgba(0,0,0,.42);
+  text-shadow:1px 2px 0 rgba(238,145,188,.62),-1px -1px 0 rgba(132,225,210,.42),0 8px 16px rgba(0,0,0,.38);
 }
 .terminal .brand span{color:inherit;text-shadow:inherit}
 .terminal .tag{margin-top:12px;color:rgba(247,240,204,.73);letter-spacing:.15em}
@@ -571,7 +542,6 @@ body::after{
   border:1px solid rgba(247,240,204,.23);
   border-radius:19px 24px 17px 22px;
   background:
-    repeating-linear-gradient(0deg,rgba(247,240,204,.045) 0 1px,transparent 1px 4px),
     radial-gradient(circle at 82% 23%,rgba(238,145,188,.13),transparent 10rem),
     linear-gradient(160deg,rgba(21,45,36,.92),rgba(19,29,21,.94));
   box-shadow:inset 0 0 0 5px rgba(247,240,204,.04),inset 0 0 25px rgba(0,0,0,.36);
@@ -608,6 +578,7 @@ body::after{
 .terminal .chamber{color:#172219;padding:16px 15px 17px}
 .terminal .chamber + .chamber{border-image:linear-gradient(90deg,transparent,rgba(23,34,25,.28) 17%,rgba(23,34,25,.28) 83%,transparent) 1}
 .terminal h2{color:#33442d}
+.terminal h2{font-family:var(--disp);font-size:13px;letter-spacing:.13em}
 .terminal h2::after{height:1px;background:linear-gradient(90deg,rgba(23,34,25,.48),rgba(83,110,48,.25),transparent)}
 .terminal .cap{color:#44533d}
 .terminal .cap b{color:#1b2918}
@@ -658,7 +629,6 @@ body::after{
   border:1px solid rgba(24,37,20,.5);
   border-radius:21px;
   background:
-    repeating-linear-gradient(0deg,rgba(247,240,204,.045) 0 1px,transparent 1px 4px),
     radial-gradient(circle at 58% 46%,rgba(238,145,188,.17),transparent 10rem),
     radial-gradient(circle at 29% 62%,rgba(137,229,213,.16),transparent 11rem),
     linear-gradient(180deg,#20362a,#101c14);
@@ -690,11 +660,9 @@ body::after{
 .terminal button:hover{border-color:#4f7d65;box-shadow:inset 0 1px rgba(255,255,255,.65),0 0 0 2px rgba(137,229,213,.26),0 6px 10px rgba(0,0,0,.17)}
 .terminal button.lit{color:#172219;background:radial-gradient(circle at 25% 10%,rgba(255,255,255,.72),transparent 23%),linear-gradient(180deg,#c9f08d,#8fc875 67%,#4d7146);border-color:#4c765d}
 .terminal .deck > .skin{background:radial-gradient(circle at 12% 2%,rgba(255,255,255,.46),transparent 12rem),linear-gradient(145deg,rgba(238,196,215,.7),rgba(152,220,202,.48),rgba(68,55,88,.55))}
-.terminal .keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));align-items:end}
-.terminal .keys button{color:#172219;border-color:rgba(24,37,20,.34);background:radial-gradient(circle at 32% 18%,rgba(255,255,255,.72),transparent 18%),linear-gradient(145deg,#f6efc4,#a7c68c 72%,#5d7047);box-shadow:inset 0 1px rgba(255,255,255,.54),inset 0 -8px 11px rgba(50,59,31,.18),0 5px 8px rgba(0,0,0,.16)}
-.terminal .keys button.acc{color:#f4edca;background:radial-gradient(circle at 32% 18%,rgba(255,255,255,.44),transparent 17%),linear-gradient(145deg,#786184,#3f344f 66%,#202c21);border-color:rgba(247,240,204,.26)}
-.terminal .keys button.lit{color:#17301f;background:linear-gradient(180deg,#ddf78d,#91ce83 67%,#4b7b58);box-shadow:inset 0 1px rgba(255,255,255,.65),0 0 15px rgba(204,231,101,.36)}
-.terminal .keys button.held{color:#3c2434;background:linear-gradient(180deg,#ffd0e4,#d58bab 68%,#855071)}
+.terminal .surface{height:168px;cursor:crosshair;touch-action:none}
+.terminal .surface.hex{height:210px}
+.terminal .surface.ribbon{height:138px;cursor:ew-resize}
 .terminal .status > .skin{background:linear-gradient(145deg,rgba(26,53,41,.88),rgba(36,43,29,.82) 55%,rgba(65,48,76,.76))}
 .terminal .status .readout{border-color:rgba(247,240,204,.16)}
 .terminal .status .readout span:first-child{color:rgba(247,240,204,.72)}
@@ -927,7 +895,8 @@ body::after{
       <span class="skin" aria-hidden="true"></span>
       <div class="deckhead">
         <div class="surf">
-          <button id="keysBtn" class="sm lit">Keys</button>
+          <button id="pianoBtn" class="sm lit">Piano</button>
+          <button id="hexBtn" class="sm">Hex</button>
           <button id="ribBtn" class="sm">Ribbon</button>
         </div>
         <div class="dials perf">
@@ -943,8 +912,7 @@ body::after{
           </label>
         </div>
       </div>
-      <div class="keys" id="keys"></div>
-      <canvas class="ribbon" id="ribbon" width="1200" height="150" hidden></canvas>
+      <canvas class="surface" id="surface" width="1200" height="190"></canvas>
       <p class="cap" id="surfHint"></p>
     </div>
 
@@ -1383,46 +1351,113 @@ function setSustain(on){
     sustained.clear(); sound(); paintKeys();
   }
 }
-function allOff(){ order.length=0; sustained.clear(); vels.clear(); qHeld.clear(); sound(); paintKeys(); }
+function allOff(){ ribHz=null; order.length=0; sustained.clear(); vels.clear(); qHeld.clear(); surfacePtrs.clear(); sound(); paintKeys(); }
 function showOct(){ ui("octChip").textContent = "oct "+(octave>0?"+":"")+octave; }
 
-function buildKeys(){
-  const host=ui("keys");
-  for(let m=48;m<=72;m++){
-    const b=document.createElement("button");
-    b.textContent = NOTES[m%12]+(Math.floor(m/12)-1);
-    b.dataset.midi=m;
-    if(NOTES[m%12].length>1) b.classList.add("acc");
-    b.addEventListener("pointerdown",e=>{
-      e.preventDefault();
-      try{ b.setPointerCapture(e.pointerId); }catch(_){}
-      // vertical position inside the key is velocity, the way a ribbon reads it
-      const r=b.getBoundingClientRect();
-      noteOn(m, Math.max(0.15, Math.min(1, (e.clientY-r.top)/r.height)));
-    });
-    b.addEventListener("pointerup",()=>noteOff(m));
-    b.addEventListener("pointercancel",()=>noteOff(m));
-    b.addEventListener("pointerleave",()=>{ if(order.includes(m)) noteOff(m); });
-    host.appendChild(b);
-  }
+function paintKeys(){ /* the canvas is repainted in frame() */ }
+
+/* Aliquoto/Cella's 37-note range and isomorphic mapping, housed in the single
+   canvas surface used by Moire. Physa remains last-note-priority monophonic. */
+const SURF={low:48,high:84};
+const HEX={base:48,a:2,b:1,cols:12,rows:4,cells:[]};
+const RIB={base:36,oct:4};
+const surfacePtrs=new Map();
+const pianoCells=[];
+const HEXKMAP=(()=>{ const rows=["zxcvbnm,./","asdfghjkl;","qwertyuiop","1234567890"], map={};
+  rows.forEach((row,r)=>[...row].forEach((ch,c)=>{ map[ch]={c,r}; })); return map; })();
+let SURFACE="piano";
+
+function setSurface(s){
+  SURFACE=s; ribHz=null; surfacePtrs.clear(); allOff();
+  const cv=ui("surface");
+  cv.classList.toggle("hex",s==="hex");
+  cv.classList.toggle("ribbon",s==="ribbon");
+  ui("pianoBtn").classList.toggle("lit",s==="piano");
+  ui("hexBtn").classList.toggle("lit",s==="hex");
+  ui("ribBtn").classList.toggle("lit",s==="ribbon");
+  ui("surfHint").textContent = s==="piano"
+    ? "37 notes. QWERTY uses the a w s e d f… row. z and x shift octave."
+    : s==="hex"
+      ? "Isomorphic: right +2 semitones, upper-right +1. QWERTY uses four rows."
+      : "Four octaves. Drag left to right for pitch and top to bottom for velocity.";
 }
-function paintKeys(){
-  for(const b of ui("keys").children){
-    const m=+b.dataset.midi;
-    b.classList.toggle("lit", order.includes(m));
-    b.classList.toggle("held", sustained.has(m));
-  }
+
+function surfacePoint(e){
+  const r=ui("surface").getBoundingClientRect();
+  return {x:Math.max(0,Math.min(r.width,e.clientX-r.left)),
+          y:Math.max(0,Math.min(r.height,e.clientY-r.top)),w:r.width,h:r.height};
 }
+function surfaceHit(p){
+  if(SURFACE==="piano"){
+    for(const c of pianoCells) if(c.black&&p.x>=c.x&&p.x<=c.x+c.w&&p.y>=c.y&&p.y<=c.y+c.h) return c.midi;
+    for(const c of pianoCells) if(!c.black&&p.x>=c.x&&p.x<=c.x+c.w&&p.y>=c.y&&p.y<=c.y+c.h) return c.midi;
+  }
+  if(SURFACE==="hex"){
+    let best=null,bd=Infinity;
+    for(const c of HEX.cells){ const d=(p.x-c.x)**2+(p.y-c.y)**2; if(d<bd){bd=d;best=c;} }
+    if(best&&bd<=best.r*best.r) return best.midi;
+  }
+  return null;
+}
+function setRibbonPoint(p){
+  const midi=RIB.base+(p.x/Math.max(1,p.w))*RIB.oct*12;
+  ribHz=440*Math.pow(2,(midi-69)/12); ribVel=Math.max(.15,Math.min(1,p.y/Math.max(1,p.h))); sound();
+}
+
+(function surfaceInput(){
+  const cv=ui("surface");
+  cv.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    try{cv.setPointerCapture(e.pointerId);}catch(_){}
+    const p=surfacePoint(e), held=SURFACE==="ribbon"
+      ? {ribbon:true,p,started:false}
+      : {midi:surfaceHit(p),p,started:false};
+    if(!held.ribbon&&held.midi==null)return;
+    surfacePtrs.set(e.pointerId,held);
+    const begin=()=>{
+      const live=surfacePtrs.get(e.pointerId); if(!live)return;
+      live.started=true;
+      if(live.ribbon)setRibbonPoint(live.p);
+      else noteOn(live.midi,Math.max(.15,Math.min(1,live.p.y/Math.max(1,live.p.h))));
+    };
+    if(!ctx) start().then(begin); else begin();
+  });
+  cv.addEventListener("pointermove",e=>{
+    const held=surfacePtrs.get(e.pointerId); if(!held)return;
+    const p=surfacePoint(e); held.p=p;
+    if(!held.started)return;
+    if(held.ribbon){setRibbonPoint(p);return;}
+    const midi=surfaceHit(p); if(midi==null||midi===held.midi)return;
+    noteOff(held.midi); held.midi=midi;
+    noteOn(midi,Math.max(.15,Math.min(1,p.y/Math.max(1,p.h))));
+  });
+  const end=e=>{
+    const held=surfacePtrs.get(e.pointerId); if(!held)return;
+    if(held.started){
+      if(held.ribbon){ribHz=null;sound();}
+      else noteOff(held.midi);
+    }
+    surfacePtrs.delete(e.pointerId);
+  };
+  cv.addEventListener("pointerup",end);
+  cv.addEventListener("pointercancel",end);
+})();
 
 addEventListener("keydown",e=>{
   if(e.repeat) return;
   const t=e.target.tagName;
   if(t==="INPUT"||t==="SELECT"||t==="TEXTAREA") return;
   const k=e.key.toLowerCase();
+  if(k===" "){ e.preventDefault(); setSustain(true); return; }
+  if(SURFACE==="hex" && k in HEXKMAP && !qHeld.has(k)){
+    const g=HEXKMAP[k], m=HEX.base+octave*12+g.c*HEX.a+g.r*HEX.b;
+    qHeld.set(k,m); noteOn(m,.8); return;
+  }
+  if(SURFACE==="hex") return;
   if(k==="z"){ octave=Math.max(-3,octave-1); showOct(); return; }
   if(k==="x"){ octave=Math.min(3,octave+1); showOct(); return; }
-  if(k===" "){ e.preventDefault(); setSustain(true); return; }
-  if(k in QMAP && !qHeld.has(k)){
+  if(SURFACE==="ribbon") return;
+  if(SURFACE==="piano" && k in QMAP && !qHeld.has(k)){
     // remember the note this key started, so shifting octave while held still
     // releases the note that is actually sounding
     const m=60+octave*12+QMAP[k];
@@ -1460,44 +1495,6 @@ function onMIDI(e){
   else if(cmd===0xb0 && d1===64) setSustain(d2>=64);
   else if(cmd===0xb0 && (d1===120||d1===123)) allOff();
 }
-
-/* ---- ribbon ------------------------------------------------------------- */
-/* The point of a ribbon here is that pitch is the nonlinearity's own axis: the
-   state excursion goes as 1/f, so sliding along it sweeps the element from dirty
-   to clean continuously. On keys that behaviour is a table; here it is a gesture. */
-const RIB={base:36, oct:4};
-let SURFACE="keys";
-const ribHzAt = (x,w) => 440*Math.pow(2,((RIB.base+(x/w)*RIB.oct*12)-69)/12);
-
-function setSurface(s){
-  SURFACE=s; ribHz=null; allOff();
-  ui("keys").hidden = s!=="ribbon" ? false : true;
-  ui("ribbon").hidden = s!=="ribbon";
-  ui("keysBtn").classList.toggle("lit", s==="keys");
-  ui("ribBtn").classList.toggle("lit", s==="ribbon");
-  ui("surfHint").textContent = s==="keys"
-    ? "Click a key, or play the a w s e d f… row. z and x shift octave, space sustains."
-    : "Drag across the strip. Left to right is pitch, top to bottom is velocity.";
-}
-
-(function ribbonInput(){
-  const c=ui("ribbon");
-  const at=e=>{ const r=c.getBoundingClientRect();
-    return {x:Math.max(0,Math.min(r.width,e.clientX-r.left)), w:r.width,
-            v:Math.max(0.15,Math.min(1,(e.clientY-r.top)/r.height))}; };
-  const set=e=>{ const p=at(e); ribHz=ribHzAt(p.x,p.w); ribVel=p.v; sound(); };
-  c.addEventListener("pointerdown",e=>{
-    e.preventDefault();
-    try{ c.setPointerCapture(e.pointerId); }catch(_){}
-    if(!ctx){ start().then(()=>set(e)); return; }
-    set(e);
-  });
-  c.addEventListener("pointermove",e=>{ if(ribHz!=null) set(e); });
-  const up=()=>{ if(ribHz==null) return; ribHz=null; if(node) node.port.postMessage({noteOff:1}); };
-  c.addEventListener("pointerup",up);
-  c.addEventListener("pointercancel",up);
-  c.addEventListener("pointerleave",up);
-})();
 
 /* ---- dials -------------------------------------------------------------- */
 /* Every dial wraps a real <input type=range>. The input stays in the DOM, keeps
@@ -1727,38 +1724,86 @@ function drawLoop(){
   ui("pinchPct").textContent = (m.pinch*100).toFixed(1)+"%";
 }
 
-function drawRibbon(){
-  const cv=ui("ribbon");
-  if(cv.hidden) return;
-  const {g,w,h}=fit(cv);
-  g.clearRect(0,0,w,h);
-  // the strip itself: metal at the low end where the element distorts hardest,
-  // tissue at the top where it passes clean
-  const grad=g.createLinearGradient(0,0,w,0);
-  grad.addColorStop(0,   "hsl(27 46% 22%)");
-  grad.addColorStop(0.45,"hsl(340 22% 24%)");
-  grad.addColorStop(1,   "hsl(165 36% 20%)");
-  g.fillStyle=grad; g.fillRect(0,0,w,h);
-  const oct=RIB.oct;
+function roundRectPath(g,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2); g.beginPath();
+  g.moveTo(x+r,y); g.lineTo(x+w-r,y); g.arcTo(x+w,y,x+w,y+r,r);
+  g.lineTo(x+w,y+h-r); g.arcTo(x+w,y+h,x+w-r,y+h,r);
+  g.lineTo(x+r,y+h); g.arcTo(x,y+h,x,y+h-r,r);
+  g.lineTo(x,y+r); g.arcTo(x,y,x+r,y,r); g.closePath();
+}
+function drawPianoSurface(g,w,h){
+  pianoCells.length=0;
+  const isBlack=m=>[1,3,6,8,10].includes((m%12+12)%12);
+  const whites=[]; for(let m=SURF.low;m<=SURF.high;m++) if(!isBlack(m)) whites.push(m);
+  const ww=w/whites.length;
+  for(let i=0;i<whites.length;i++){
+    const m=whites[i],x=i*ww,on=order.includes(m),held=sustained.has(m);
+    const gr=g.createLinearGradient(0,0,0,h);
+    if(held){gr.addColorStop(0,"#ffd0e4");gr.addColorStop(1,"#b66f98");}
+    else if(on){gr.addColorStop(0,"#e7f79b");gr.addColorStop(1,"#78b68d");}
+    else{gr.addColorStop(0,"#f4edc3");gr.addColorStop(1,"#9eb685");}
+    g.fillStyle=gr; roundRectPath(g,x+1,1,ww-2,h-2,Math.min(8,ww*.18)); g.fill();
+    g.strokeStyle="rgba(24,37,20,.38)"; g.stroke();
+    if(m%12===0){g.fillStyle="#243520";g.font="10px 'Space Mono',monospace";g.fillText("C"+(Math.floor(m/12)-1),x+5,h-8);}
+    pianoCells.push({midi:m,x:x+1,y:1,w:ww-2,h:h-2,black:false});
+  }
+  let wi=0;
+  for(let m=SURF.low;m<=SURF.high;m++){
+    if(!isBlack(m)){wi++;continue;}
+    const bw=ww*.62,x=wi*ww-bw*.5,bh=h*.62,on=order.includes(m),held=sustained.has(m);
+    const gr=g.createLinearGradient(0,0,0,bh);
+    if(held){gr.addColorStop(0,"#ffb8d7");gr.addColorStop(1,"#70435f");}
+    else if(on){gr.addColorStop(0,"#b6efcf");gr.addColorStop(1,"#3d7668");}
+    else{gr.addColorStop(0,"#665477");gr.addColorStop(1,"#1a251d");}
+    g.fillStyle=gr; roundRectPath(g,x,1,bw,bh,Math.min(7,bw*.2)); g.fill();
+    g.strokeStyle="rgba(247,240,204,.24)"; g.stroke();
+    pianoCells.push({midi:m,x,y:1,w:bw,h:bh,black:true});
+  }
+}
+function drawHexSurface(g,w,h){
+  HEX.cells.length=0;
+  const rad=Math.max(8,Math.min(w/((HEX.cols+.5)*Math.sqrt(3)),h/(HEX.rows*1.5+.5)));
+  const hx=Math.sqrt(3)*rad,vy=1.5*rad;
+  const x0=hx*.5+(w-(HEX.cols+.5)*hx)/2,y0=rad+(h-((HEX.rows-1)*vy+2*rad))/2;
+  for(let r=0;r<HEX.rows;r++) for(let c=0;c<HEX.cols;c++){
+    const midi=HEX.base+octave*12+c*HEX.a+r*HEX.b;
+    const x=x0+c*hx+(r%2?hx*.5:0),y=y0+r*vy,on=order.includes(midi),held=sustained.has(midi);
+    g.beginPath();
+    for(let k=0;k<6;k++){const a=Math.PI/6+k*Math.PI/3,px=x+Math.cos(a)*rad*.94,py=y+Math.sin(a)*rad*.94;k?g.lineTo(px,py):g.moveTo(px,py);}
+    g.closePath();
+    g.fillStyle=held?"#d58bab":on?"#cfe97b":((r+c)%3===0?"#8dcbb8":"#d6d7a2");
+    g.strokeStyle=on?"#f5f0c8":"rgba(30,54,40,.55)";g.lineWidth=1;g.fill();g.stroke();
+    if(rad>13){g.fillStyle="#20331f";g.textAlign="center";g.textBaseline="middle";g.font="9px 'Space Mono',monospace";g.fillText(NOTES[(midi%12+12)%12],x,y);}
+    HEX.cells.push({midi,x,y,r:rad*.94});
+  }
+  g.textAlign="left";g.textBaseline="alphabetic";
+}
+function drawRibbonSurface(g,w,h){
+  const pad=13,stripY=h*.24,stripH=h*.52;
+  const gr=g.createLinearGradient(pad,0,w-pad,0);
+  gr.addColorStop(0,"#53405f");gr.addColorStop(.28,"#d58bab");gr.addColorStop(.56,"#d6df8a");gr.addColorStop(1,"#72c9b3");
+  g.fillStyle=gr;roundRectPath(g,pad,stripY,w-pad*2,stripH,stripH/2);g.fill();
+  g.strokeStyle="rgba(247,240,204,.46)";g.stroke();
   g.font="10px 'Space Mono',monospace";
-  for(let o=0;o<=oct;o++){
-    const x=o/oct*w;
-    g.strokeStyle= o===0?"transparent":"hsl(46 22% 52% / .38)";
-    g.lineWidth=1; g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke();
-    const m=RIB.base+o*12;
-    g.fillStyle="hsl(46 18% 62%)";
-    g.fillText(NOTES[m%12]+(Math.floor(m/12)-1), x+4, h-6);
+  for(let o=0;o<=RIB.oct;o++){
+    const x=pad+o/RIB.oct*(w-pad*2),m=RIB.base+o*12;
+    if(o>0&&o<RIB.oct){g.strokeStyle="rgba(25,48,35,.36)";g.beginPath();g.moveTo(x,stripY);g.lineTo(x,stripY+stripH);g.stroke();}
+    g.fillStyle="#f4edca";g.fillText(NOTES[m%12]+(Math.floor(m/12)-1),Math.min(w-28,x+4),h-8);
   }
   if(ribHz!=null){
-    const t=(Math.log2(ribHz/440)*12+69-RIB.base)/(oct*12);
-    const x=t*w, y=(1-ribVel)*h;
-    g.strokeStyle=CSS.slime; g.lineWidth=2;
-    g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke();
-    g.fillStyle=CSS.hot;
-    g.beginPath(); g.arc(x,h-y,7,0,7); g.fill();
-    g.fillStyle="hsl(46 30% 82%)";
-    g.fillText(Math.round(ribHz)+" Hz", Math.min(w-56,x+10), 16);
+    const t=(Math.log2(ribHz/440)*12+69-RIB.base)/(RIB.oct*12),x=pad+t*(w-pad*2),y=stripY+ribVel*stripH;
+    g.strokeStyle=CSS.slime;g.lineWidth=2;g.beginPath();g.moveTo(x,stripY-6);g.lineTo(x,stripY+stripH+6);g.stroke();
+    g.fillStyle=CSS.hot;g.beginPath();g.arc(x,y,7,0,Math.PI*2);g.fill();
+    g.fillStyle="#f7f0cc";g.fillText(Math.round(ribHz)+" Hz",Math.min(w-62,x+10),15);
   }
+}
+function drawSurface(){
+  const {g,w,h}=fit(ui("surface"));
+  g.clearRect(0,0,w,h);
+  const bg=g.createLinearGradient(0,0,w,h);bg.addColorStop(0,"#1d3629");bg.addColorStop(1,"#101a13");g.fillStyle=bg;g.fillRect(0,0,w,h);
+  if(SURFACE==="hex")drawHexSurface(g,w,h);
+  else if(SURFACE==="ribbon")drawRibbonSurface(g,w,h);
+  else drawPianoSurface(g,w,h);
 }
 
 function frame(){
@@ -1775,7 +1820,7 @@ function frame(){
   document.documentElement.style.setProperty("--age", Math.min(1,wMean*1.6).toFixed(3));
   const gg=document.getElementById("wearGauge");
   if(gg) gg.style.setProperty("--w", Math.min(1,wMean).toFixed(4));
-  drawCurve(); drawLoop(); drawScope(); drawRibbon();
+  drawCurve(); drawLoop(); drawScope(); drawSurface();
   requestAnimationFrame(frame);
 }
 
@@ -1807,7 +1852,8 @@ ui("preset").addEventListener("change", e=>{
 for(const id of ["mu","tau","amp","edge","auto","cap","sen","n","spread","rein","glide","veld"])
   ui(id).addEventListener("input", ()=>{ labels(); params(); });
 for(const id of ["n","rein"]) ui(id).addEventListener("input", setVeins);
-ui("keysBtn").addEventListener("click", ()=>setSurface("keys"));
+ui("pianoBtn").addEventListener("click", ()=>setSurface("piano"));
+ui("hexBtn").addEventListener("click", ()=>setSurface("hex"));
 ui("ribBtn").addEventListener("click", ()=>setSurface("ribbon"));
 ui("gain").addEventListener("input", e=>{
   labels(); if(gainNode) gainNode.gain.value=+e.target.value;
@@ -1827,8 +1873,8 @@ function typeset(){
   katex.render("i=\\dfrac{1}{N}\\sum_e i_e+C\\dfrac{dv}{dt}", ui("tex3"), opt);
 }
 
-readCSS(); buildPresets(); buildKeys(); wireDials(); setVeins(); showOct();
-setSurface("keys"); labels(); pushLUT(); typeset(); initMIDI(); frame();
+readCSS(); buildPresets(); wireDials(); setVeins(); showOct();
+setSurface("piano"); labels(); pushLUT(); typeset(); initMIDI(); frame();
 </script>
 </body>
 </html>
