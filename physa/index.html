@@ -376,6 +376,8 @@ canvas{width:100%; display:block; border-radius:11px 15px 11px 15px;
   box-shadow:inset 0 0 0 1px hsl(165 40% 40% / .18), inset 0 3px 14px hsl(292 70% 2% / .9);}
 #curve{height:210px}
 #loop,#scope{height:232px}
+#circ{height:196px}
+.cell.wiring{grid-column:1 / -1}
 
 .legend{display:flex; flex-wrap:wrap; gap:6px 15px; margin:9px 0 0;
   font-size:11px; color:hsl(40 14% 58%)}
@@ -617,6 +619,7 @@ body::after{
 .terminal .cell > .skin::after,.terminal .deck > .skin::after{display:none}
 .terminal .cell:nth-child(2) > .skin{background:radial-gradient(circle at 17% 5%,rgba(255,255,255,.44),transparent 9rem),linear-gradient(145deg,rgba(234,213,147,.7),rgba(216,141,174,.42),rgba(73,57,94,.58))}
 .terminal .cell:nth-child(3) > .skin{background:radial-gradient(circle at 84% 7%,rgba(255,255,255,.35),transparent 9rem),linear-gradient(145deg,rgba(126,205,184,.61),rgba(89,117,73,.44),rgba(54,43,72,.58))}
+.terminal .cell.wiring > .skin{background:radial-gradient(circle at 50% 4%,rgba(255,255,255,.34),transparent 11rem),linear-gradient(145deg,rgba(214,178,120,.55),rgba(126,205,184,.4),rgba(54,43,72,.6))}
 .terminal .cell h2,.terminal .deck h2{color:rgba(247,240,204,.8)}
 .terminal .cell h2::after,.terminal .deck h2::after{background:linear-gradient(90deg,rgba(247,240,204,.42),rgba(137,229,213,.27),transparent)}
 .terminal .cell .cap,.terminal .deck .cap{color:rgba(247,240,204,.76)}
@@ -888,6 +891,31 @@ body::after{
         <canvas id="scope" width="880" height="472"></canvas>
         <p class="cap">Output current. Lower notes sweep more of the element and produce
         more harmonics.</p>
+      </div>
+
+      <div class="cell wiring">
+        <span class="skin" aria-hidden="true"></span>
+        <div class="cellhead">
+          <h2>Circuit</h2>
+          <div class="inset">
+            <label class="rocker">
+              <input type="checkbox" id="slow" checked aria-label="replay the cycle slowly">
+              <span class="lever" aria-hidden="true"><b></b></span>
+              <span class="dl">Slow cycle</span>
+              <span class="dv" id="slowL">0.5 Hz</span>
+            </label>
+          </div>
+        </div>
+        <canvas id="circ" width="1560" height="392"></canvas>
+        <div class="legend">
+          <span>branches <b id="brCount">1</b></span>
+          <span>mould share <b id="capShare">&mdash;</b></span>
+          <span>total <b id="condTot">&mdash;</b></span>
+        </div>
+        <p class="cap">One drive across every branch. <b>Colony</b> adds memristive
+        branches and sets their thickness; <b>Mould</b> adds the capacitor beside them,
+        which carries current a quarter cycle out of step and holds no state. The cycle
+        is replayed at 0.5&thinsp;Hz &mdash; the element runs at the note's pitch.</p>
       </div>
     </div>
 
@@ -1171,7 +1199,7 @@ class PhysaProc extends AudioWorkletProcessor {
       const wn=128, ws=new Float32Array(wn), step=this.wear.length/wn;
       let wsum=0;
       for(let i=0;i<wn;i++){ ws[i]=this.wear[Math.floor(i*step)]; wsum+=ws[i]; }
-      this.port.postMessage({qs:qs, ds:ds, m:msum/N, peak:this.peak, age:this.age,
+      this.port.postMessage({qs:qs, ds:ds, m:msum/N, peak:this.peak, age:this.age, f:this.freq,
                              wear:ws, wmean:wsum/wn, lv:this.lv.slice(), li:this.li.slice(),
                              lph:this.lph.slice()});
       this.peak=0;
@@ -1274,12 +1302,14 @@ function labels(){
   const vd=+ui("veld").value;
   ui("veldL").textContent = vd===0 ? "fixed" : Math.round(vd*100)+"%";
   ui("edgeL").textContent = ui("edge").checked ? "wrap" : "clamp";
+  ui("slowL").textContent = ui("slow").checked ? "0.5 Hz" : "0.12 Hz";
   ui("autoL").textContent = ui("auto").checked ? "on" : "off";
   for(const d of document.querySelectorAll(".dial")) setKnob(d);
 }
 
 let qs=new Float32Array(1), ds=new Float32Array([1]), mNow=0, pkNow=0;
 let wearArr=null, wMean=0, ageNow=0, loopV=null, loopI=null, loopP=null;
+let freqNow=110;
 
 async function start(){
   if(ctx){ if(ctx.state==="suspended") ctx.resume(); return; }
@@ -1292,6 +1322,7 @@ async function start(){
     const d=e.data;
     qs=d.qs; ds=d.ds; mNow=d.m; pkNow=d.peak||0;
     wearArr=d.wear; wMean=d.wmean; ageNow=d.age;
+    if(d.f) freqNow=d.f;
     if(d.lv){ loopV=d.lv; loopI=d.li; loopP=d.lph; }
   };
   gainNode = ctx.createGain(); gainNode.gain.value = +ui("gain").value;
@@ -1724,6 +1755,189 @@ function drawLoop(){
   ui("pinchPct").textContent = (m.pinch*100).toFixed(1)+"%";
 }
 
+/* ---- the circuit -------------------------------------------------------- */
+/* The topology the Colony and Mould dials build, drawn from the same numbers the
+   worklet reports: one drive across N memristive branches in parallel, plus a
+   memoryless capacitance beside them, sensed across Rref on the return.
+
+   The branch currents are shown at a replayed phase rather than the real one.
+   The element runs at the note's pitch, which is two orders above the frame rate,
+   so an honest instantaneous reading would alias into nonsense; replaying one
+   cycle at 0.5 Hz keeps the one relationship worth seeing, that the capacitor
+   peaks a quarter cycle away from the memristors. Magnitudes are exact for the
+   state last reported: i_e = v * D_e / M(q_e) / N, and i_C = C w A cos. */
+const flowAcc = new Float64Array(9);
+let circT = 0, circPh = 0;
+
+function memristorSym(g,x,y0,y1,bw){
+  const e=bw*0.26, seg=(y1-y0)/4;
+  g.beginPath();
+  g.moveTo(x,y0);
+  g.lineTo(x+e,y0);      g.lineTo(x+e,y0+seg);
+  g.lineTo(x-e,y0+seg);  g.lineTo(x-e,y0+2*seg);
+  g.lineTo(x+e,y0+2*seg);g.lineTo(x+e,y0+3*seg);
+  g.lineTo(x-e,y0+3*seg);g.lineTo(x-e,y1);
+  g.lineTo(x,y1);
+  g.stroke();
+}
+
+function drawCircuit(){
+  const {g,w,h}=fit(ui("circ"));
+  g.clearRect(0,0,w,h);
+  const mono=n=>n+"px 'Space Mono',monospace";
+  const now=performance.now()/1000;
+  const dtF = circT ? Math.min(0.08, now-circT) : 0;
+  circT=now;
+
+  const N   = Math.max(1, Math.min(8, +ui("n").value));
+  const capF= (+ui("cap").value)*1e-6;
+  const capOn = capF>0;
+  const wrap= ui("edge").checked;
+
+  /* branch admittances from the state the worklet last reported */
+  const Gs=new Float64Array(N), Ms=new Float64Array(N);
+  let Gsum=0;
+  for(let e=0;e<N;e++){
+    const q = e<qs.length ? qs[e] : 0, D = e<ds.length ? ds[e] : 1;
+    let u=(q+1)/2; u = wrap ? u-Math.floor(u) : Math.max(0,Math.min(1,u));
+    const a=LUT[Math.round(u*(LUTN-1))], ww=wearAt(u);
+    const m=Math.max(20, ww>0 ? a+(FLAT-a)*ww : a);
+    Ms[e]=m;
+    Gs[e]=D/m/N;            // the worklet averages the branches, so each carries 1/N
+    Gsum+=Gs[e];
+  }
+  const om=2*Math.PI*freqNow, Gc=capOn ? capF*om : 0;
+  const Gtot=Math.hypot(Gsum,Gc);
+
+  /* drive amplitude: whatever the loop capture last saw, so this idles at rest */
+  let A=0; if(loopV){ for(const v of loopV) A=Math.max(A,Math.abs(v)); }
+  const live = A>2e-4;
+  const slow = ui("slow").checked;
+  if(live) circPh = (circPh + dtF*(slow?0.5:0.12)) % 1;
+  const th=circPh*2*Math.PI;
+  const v  = live ? A*Math.sin(th) : 0;
+  const ic = live ? A*Gc*Math.cos(th) : 0;
+  const iPk= (A*Gtot)||1e-12;
+  // brightness is relative to the busiest branch, not to the total: the branches
+  // are in parallel, so normalising against the sum would dim every one of them
+  // just for adding another
+  let gMax=Gc; for(let e=0;e<N;e++) if(Gs[e]>gMax) gMax=Gs[e];
+  const iBr=(A*gMax)||1e-12;
+
+  /* geometry */
+  const padT=17, padB=34, padL=15, padR=15;
+  const topY=padT, botY=h-padB, midY=(topY+botY)/2, span=botY-topY;
+  const srcX=padL+21, senX=w-padR-30;
+  const slots=N+(capOn?1:0);
+  const x0=srcX+52, x1=senX-46;
+  const sp=(x1-x0)/slots;
+  const bx=e=>x0+sp*(e+0.5);
+
+  const RAIL="hsl(38 26% 33%)";
+  g.lineJoin="round"; g.lineCap="round";
+
+  /* rails */
+  g.strokeStyle=RAIL; g.lineWidth=1.6;
+  g.beginPath();
+  g.moveTo(srcX,topY); g.lineTo(senX,topY);
+  g.moveTo(srcX,botY); g.lineTo(senX,botY);
+  g.moveTo(srcX,topY); g.lineTo(srcX,midY-19);
+  g.moveTo(srcX,botY); g.lineTo(srcX,midY+19);
+  g.moveTo(senX,topY); g.lineTo(senX,botY);
+  g.stroke();
+
+  /* source */
+  g.strokeStyle=CSS["verd-hi"]; g.lineWidth=1.5;
+  g.beginPath(); g.arc(srcX,midY,19,0,7); g.stroke();
+  g.lineWidth=1.4; g.beginPath();
+  for(let i=0;i<=24;i++){
+    const t=i/24, xx=srcX-11+22*t, yy=midY-7*Math.sin(t*2*Math.PI);
+    i?g.lineTo(xx,yy):g.moveTo(xx,yy);
+  }
+  g.stroke();
+  if(live){                                   // where in the cycle the replay sits
+    g.fillStyle=CSS.hot;
+    g.beginPath(); g.arc(srcX-11+22*circPh, midY-7*Math.sin(th), 2.6, 0, 7); g.fill();
+  }
+  g.fillStyle="hsl(46 16% 56%)"; g.font=mono(9.5); g.textAlign="center";
+  g.fillText("v(t)", srcX, botY+13);
+  g.fillText(live ? A.toFixed(2)+" pk" : "idle", srcX, botY+24);
+
+  /* memristive branches */
+  const y0=midY-span*0.24, y1=midY+span*0.24;
+  for(let e=0;e<N;e++){
+    const x=bx(e), D=(e<ds.length?ds[e]:1);
+    const ie=v*Gs[e], lit=Math.min(1,Math.abs(ie)/iBr);
+    flowAcc[e]+= (ie/iBr)*dtF*110;
+
+    g.strokeStyle=RAIL; g.lineWidth=1+Math.min(4,2.1*D);   // tube thickness
+    g.beginPath(); g.moveTo(x,topY); g.lineTo(x,y0); g.moveTo(x,y1); g.lineTo(x,botY); g.stroke();
+
+    if(live && lit>0.02){                                  // current, as marching dashes
+      g.save();
+      g.strokeStyle=CSS.hot; g.globalAlpha=0.25+0.75*lit; g.lineWidth=1.4;
+      g.setLineDash([3,7]); g.lineDashOffset=-flowAcc[e];
+      g.beginPath(); g.moveTo(x,topY); g.lineTo(x,y0); g.moveTo(x,y1); g.lineTo(x,botY); g.stroke();
+      g.restore();
+    }
+
+    g.strokeStyle = live ? CSS.hot : "hsl(27 34% 38%)";
+    g.globalAlpha = live ? 0.42+0.58*lit : 1;
+    g.lineWidth=1.7;
+    g.strokeRect(x-13, y0, 26, y1-y0);
+    memristorSym(g,x,y0,y1,26);
+    g.fillStyle=g.strokeStyle; g.fillRect(x-13, y1-3.2, 26, 3.2);   // the polarity bar
+    g.globalAlpha=1;
+
+    g.fillStyle="hsl(46 16% 56%)"; g.font=mono(9.5);
+    g.fillText(Math.round(Ms[e])+"Ω", x, botY+13);
+    g.fillStyle=CSS.hot;
+    g.fillText(((Gs[e]/(Gtot||1))*100).toFixed(0)+"%", x, botY+24);
+  }
+
+  /* the mould: a memoryless capacitance beside them */
+  if(capOn){
+    const x=bx(N), lit=Math.min(1,Math.abs(ic)/iBr);
+    flowAcc[8]+= (ic/iBr)*dtF*110;
+    g.strokeStyle=RAIL; g.lineWidth=1.4;
+    g.beginPath(); g.moveTo(x,topY); g.lineTo(x,midY-6); g.moveTo(x,midY+6); g.lineTo(x,botY); g.stroke();
+    if(live && lit>0.02){
+      g.save();
+      g.strokeStyle=CSS.slime; g.globalAlpha=0.25+0.75*lit; g.lineWidth=1.4;
+      g.setLineDash([3,7]); g.lineDashOffset=-flowAcc[8];
+      g.beginPath(); g.moveTo(x,topY); g.lineTo(x,midY-6); g.moveTo(x,midY+6); g.lineTo(x,botY); g.stroke();
+      g.restore();
+    }
+    g.strokeStyle=CSS.slime; g.globalAlpha= live ? 0.42+0.58*lit : 1; g.lineWidth=2.4;
+    g.beginPath();
+    g.moveTo(x-13,midY-6); g.lineTo(x+13,midY-6);
+    g.moveTo(x-13,midY+6); g.lineTo(x+13,midY+6);
+    g.stroke(); g.globalAlpha=1;
+    g.fillStyle="hsl(46 16% 56%)"; g.font=mono(9.5);
+    g.fillText((+ui("cap").value).toFixed(2)+"µF", x, botY+13);
+    g.fillStyle=CSS.slime;
+    g.fillText(((Gc/(Gtot||1))*100).toFixed(0)+"%", x, botY+24);
+  }
+
+  /* sense resistor on the return, and the tap */
+  const rz=senX, ry0=midY-17, ry1=midY+17;
+  g.strokeStyle=CSS.iris; g.lineWidth=1.6; g.beginPath();
+  g.moveTo(rz,ry0);
+  for(let i=0;i<6;i++) g.lineTo(rz+(i%2?-6:6), ry0+(ry1-ry0)*(i+0.5)/6);
+  g.lineTo(rz,ry1); g.stroke();
+  g.strokeStyle=RAIL; g.lineWidth=1.6;
+  g.beginPath(); g.moveTo(rz,midY); g.lineTo(w-padR+4,midY); g.stroke();
+  g.fillStyle="hsl(46 16% 56%)"; g.font=mono(9.5); g.textAlign="right";
+  g.fillText("out", w-padR+4, midY-7);
+  g.textAlign="center";
+  g.fillText("Rref", rz, botY+13);
+  g.textAlign="left";
+
+  ui("brCount").textContent = capOn ? N+" + mould" : String(N);
+  ui("capShare").textContent = capOn ? ((Gc/(Gtot||1))*100).toFixed(1)+"%" : "none";
+  ui("condTot").textContent = (Gtot>0 ? (1/Gtot).toFixed(0)+" Ω seen" : "—");
+}
+
 function roundRectPath(g,x,y,w,h,r){
   r=Math.min(r,w/2,h/2); g.beginPath();
   g.moveTo(x+r,y); g.lineTo(x+w-r,y); g.arcTo(x+w,y,x+w,y+r,r);
@@ -1820,7 +2034,7 @@ function frame(){
   document.documentElement.style.setProperty("--age", Math.min(1,wMean*1.6).toFixed(3));
   const gg=document.getElementById("wearGauge");
   if(gg) gg.style.setProperty("--w", Math.min(1,wMean).toFixed(4));
-  drawCurve(); drawLoop(); drawScope(); drawSurface();
+  drawCurve(); drawLoop(); drawScope(); drawCircuit(); drawSurface();
   requestAnimationFrame(frame);
 }
 
@@ -1849,7 +2063,7 @@ ui("preset").addEventListener("change", e=>{
   if(e.target.value==="") return;
   applyPreset(+e.target.value);
 });
-for(const id of ["mu","tau","amp","edge","auto","cap","sen","n","spread","rein","glide","veld"])
+for(const id of ["mu","tau","amp","edge","auto","cap","sen","n","spread","rein","glide","veld","slow"])
   ui(id).addEventListener("input", ()=>{ labels(); params(); });
 for(const id of ["n","rein"]) ui(id).addEventListener("input", setVeins);
 ui("pianoBtn").addEventListener("click", ()=>setSurface("piano"));

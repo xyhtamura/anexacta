@@ -517,3 +517,56 @@ Verified all three modes in the displayed in-app browser: GOMini loaded from the
 vendored file, piano rendered 37 notes, hex rendered 48 close-packed cells,
 ribbon rendered four octaves, switching changed the canvas height and hint, and
 the console stayed clear. `physa/test.html` passed all 42 offline checks.
+
+2026-08-27 — Claude Code — **Added a Circuit panel: the topology the Colony and
+Mould dials actually build, drawn from the numbers the worklet reports.** It sits
+as a full-width cell at the foot of the analysis bank, below Hysteresis and
+Current, because it is what those two panels are readings *of*.
+
+A drive source on the left, N memristive branches in parallel across it, the
+mould capacitor beside them when the dial is up, and Rref on the return with the
+output tap. Each memristive branch is drawn with its wire thickness set by its
+tube thickness `D`, labelled with its own `M(q)` and its share of the total
+current; the mould branch is in *Physarum*'s chrome yellow, the palette's
+reserved memoryless colour. The one relationship the panel exists to show is the
+quadrature — the capacitor peaks a quarter cycle away from the memristors — so
+the cycle is replayed at 0.5 Hz (a **Slow cycle** rocker drops it to 0.12 Hz).
+The element runs at the note's pitch, two orders above the frame rate, and the
+caption says so rather than implying the animation is the real waveform.
+
+The worklet now reports `this.freq` alongside the rest of its state, which is the
+only change below the UI; test.html picks the worklet out of `index.html` at run
+time, so this is the version under test.
+
+Branch brightness is normalised against the busiest branch rather than the total.
+Normalising against the sum dims every branch just for adding another, which is
+backwards: they are in parallel.
+
+**Verified 2026-08-27** by pixel-probing the canvas and calling `drawCircuit()`
+directly, because the browser pane is still not displayed in this session and
+`requestAnimationFrame` therefore never runs. The pane refuses screenshots for
+the same reason, so this panel joins the reskin in having been *measured* and not
+*seen*.
+
+- Structure, by column ink profile: 1 element → peaks at the source, one branch,
+  and the sense resistor; 6 elements → six branch peaks; 6 + mould → seven. Source
+  in `--verd-hi`, sense resistor in `--iris`, branches in `--hot`, mould in
+  `--slime`, all counted by nearest-colour against the `.terminal` palette.
+- **The mould share reproduces an independently measured number.** Constant
+  M = 1200 with 1.4 µF at 110 Hz reads 75.8%, against the 75.77% *pinch* recorded
+  2026-08-25 for that same row and a closed form of 75.8%. Impedance reads 783 Ω
+  against a closed-form 783 Ω.
+- Capacitive share scales with pitch as it must: 75.8% → 91.8% → 97.8% across
+  three octaves, which is the same 8× in `ωC` the loop panel measures.
+- Quadrature holds: mean alpha over the memristive branches peaks at phase 0.25
+  and 0.75 exactly where the mould branch bottoms, and reverses at 0 and 0.5.
+- At 642 px with 8 elements and the mould — the worst case for space — the label
+  band resolves into 26 separate ink runs with an 81 px minimum gap between
+  adjacent branch groups, so nothing collides, and the page has no horizontal
+  overflow.
+- `physa/test.html` still passes every check, and the console is clear.
+
+Left undone, unchanged: per-partial elements, MIDI against real hardware,
+cross-note memory, the 55 Hz provenance question. Added to that list: **nobody
+has looked at the Circuit panel**, and its 0.5 Hz replay in particular is a
+judgement about legibility that measurement cannot settle.
