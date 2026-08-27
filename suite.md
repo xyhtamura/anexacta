@@ -61,7 +61,7 @@ but it does a different job: an offline stationarizer (scrap → yardage, *felt 
 weave*), a batch tool with no voice seam, no grammar, and nothing that keyfollows.
 It is not a synth in this family and the taxonomy slot it held was never real.
 What survives is narrower and more useful — its engine is a **candidate engine for
-member 4**, the sample/pitch-shift instrument, where turning a sample into endless
+member 5**, the sample/pitch-shift instrument, where turning a sample into endless
 stationary substrate is exactly the job. See Future directions.
 
 ## The shared engine
@@ -109,7 +109,7 @@ as *life* rather than hash.
    the flagship claim); cella's drive port in the same arc (seam already designed —
    a dropped file is the first guest, no need to wait for a harvested member);
    moire third (established copy pattern). The infra (decode/resample/analysis)
-   doubles as groundwork for member 4.
+   doubles as groundwork for member 5.
 3. **1.3 — negative lines.** Prototype in cella (physics home), port the series
    zero to moire; aliquoto needs nothing (`env` dip already is it).
 
@@ -192,7 +192,7 @@ Ideation findings (detail in `cella/cella.md`):
 
 ### Shared — the memristive element (new entity class; ideation 2026-08-03)
 
-A **memristor** in the grammar: not one more component for member 5's netlist, but
+A **memristor** in the grammar: not one more component for member 6's netlist, but
 a new *entity class* usable in the shipped trio, in the same way the zero (1.3) is
 a new entity rather than a parameter setting.
 
@@ -231,7 +231,7 @@ foot of this file is therefore closed in favour of *its own member*; the
 per-sibling placements below remain unbuilt and are still worth doing, because a
 member and a shared primitive are not exclusive.
 
-Per-sibling placement (retrofittable into the trio, does not wait on member 5):
+Per-sibling placement (retrofittable into the trio, does not wait on member 6):
 
 - **Aliquoto — one memristor per partial.** Each partial's own sine drives its own
   element, so wear ∝ 1/(`r(n)`·f₀). Upper partials wear less *automatically*; the
@@ -303,10 +303,15 @@ Caveat worth keeping in the file: **negative search results are weak evidence.**
 The honest claim is that the combination is unattested in the places searched, not
 that it is unprecedented. Re-check before making a novelty claim in public copy.
 
-### Members 4–5 — the next two synths (unnamed, ideation 2026-07-10)
+### Members 5–6 — the next two synths (unnamed, ideation 2026-07-10)
+
+*Renumbered 2026-08-27: Physa arrived out of order and is the fourth member, so
+the sampler is 5 and the circuit-physics synth is 6. Log entries below keep the
+numbers they were written with.*
+
 A different register from the digital-first trio; same engine, new definitions:
 
-4. **Mellotron-like / sample-and-pitch-shift** (no name yet — *Anexacta* is the
+5. **Mellotron-like / sample-and-pitch-shift** (no name yet — *Anexacta* is the
    collection, not this member). Mathematical definitions operating over
    sampled material rather than pure sines — pushing what a sampler/mellotron is,
    the way the trio pushes additive/resonant/FM. **Horn of Plenty's stationarizer
@@ -314,7 +319,18 @@ A different register from the digital-first trio; same engine, new definitions:
    a sample into endless stationary playback substrate. This is the only role
    Horn of Plenty has in the family — an engine to borrow here, not a member (see
    above).
-5. **Circuit-physics synth** (no name yet). *Not* faithful recreation — u-he
+
+   **Specced 2026-08-27 — [sampler-mvp.md](sampler-mvp.md).** The MVP is aliquoto's
+   grammar with `sin()` replaced by a grain reader into a loaded buffer: the phase
+   column becomes a read position in seconds, evaluated once per grain, so
+   transposition and read position are separate expressions. Taxonomy word proposed:
+   **quoted** — the spectrum is taken from material that already exists. Working
+   name **Talea** (a grafting cutting; also the isorhythmic segment), alternative
+   **Spolia**. The stationarizer is deliberately *not* in the first pass, because
+   `x : rnd(0,dur)` writes the ordinary case in one line of grammar; it returns in
+   arc 2 for sources that run out. Antigravity builds the first pass.
+
+6. **Circuit-physics synth** (no name yet). *Not* faithful recreation — u-he
    Diva, PSpice-grade modelling, the Novachord/Solovox VSTs already own that
    ground. Instead: import the **physics of circuits** as the thing that
    determines sound, then let it do what hardware physically can't — component
@@ -341,10 +357,10 @@ Parked beyond those: a physical-modelling member (string/tube/membrane in the
 grammar idiom), and the deferred summit — the **nonlinear-ODE synth**, "spectrum
 *grown*," the family's hardest, last sibling.
 
-Recognized (2026-07-10): member 5 and the summit are **the same animal in
+Recognized (2026-07-10): member 6 and the summit are **the same animal in
 different notation** — circuit physics *is* nonlinear ODEs; circuit topology
 (VCO, ladder, feedback path) is just a familiar vocabulary for writing an ODE
-system. So #5 is the *on-ramp*, not a detour: build the circuit-notation synth,
+system. So #6 is the *on-ramp*, not a detour: build the circuit-notation synth,
 let "physically impossible values" loosen gradually, and the summit arrives by
 erosion rather than assault.
 
@@ -356,7 +372,7 @@ played Hz — so an ODE member is closer to the existing grammar than it looks. 
 place it breaks is a *driven* memristive element with its own relaxation constant;
 that tension is earmarked in `../physics/GAPS.md`.
 
-### Member 5 — architecture (decided 2026-08-04)
+### Member 6 — architecture (decided 2026-08-04)
 
 **The unit is the stage.** Not a free netlist, and not a rack of modules with ins
 and outs. Both were considered and both are wrong for different reasons: a free
@@ -474,8 +490,8 @@ build a patch-cable GUI first — moire established that the equation can be the
 interface.
 
 Open: the taxonomy word. *Grown* is reserved for the nonlinear-ODE summit, and
-member 5 is the on-ramp to it rather than a separate animal, so either they share
-the word or member 5 is **run** — the spectrum is what a system did, not what a text
+member 6 is the on-ramp to it rather than a separate animal, so either they share
+the word or member 6 is **run** — the spectrum is what a system did, not what a text
 specified.
 
 Framing that ties it together: each tool takes one axis a standard imposes as a grid
@@ -485,12 +501,34 @@ tuning) the pitch grid. New members add new axes, not new engines.
 
 ---
 
-*Status: three shipped and stable (2026-07) — the 1.0 trio, published as
-**Anexacta**. Next: arc 1.1 (signal-source seam + seeded/smooth rnd).*
+*Status: four shipped — the 1.0 trio (2026-07) plus Physa (2026-08), published as
+**Anexacta**. Next: the sampler's first pass from [sampler-mvp.md](sampler-mvp.md),
+then Physa's one-element-per-partial, then arc 1.1 (signal-source seam +
+seeded/smooth rnd).*
 
 ---
 
 ## Log
+
+**2026-08-27 — Claude Code.** Ideation and documentation, no code. (a) **Renumbered
+the members.** Physa arrived out of order — it was carved out of the memristor
+section rather than built from a numbered slot — so this file called the sampler
+"member 4" and the circuit synth "member 5" while Physa was in fact the fourth
+shipped. The sampler is now 5 and the circuit-physics synth is 6 throughout the
+body; log entries keep the numbers they were written with. (b) Wrote
+[sampler-mvp.md](sampler-mvp.md), a build spec for the sampler's first pass, which
+Antigravity takes next. Its core decision: the member is aliquoto's grammar with
+the sine replaced by a grain reader, the phase column reused as a read position in
+seconds, and the position expression evaluated once per grain — from which forward
+play, freeze, time-stretch, reverse, scrub and full scatter all fall out without
+further syntax. Horn of Plenty's stationarizer stays the candidate engine but is
+out of the first pass, with the reason recorded there.
+Undone: nothing built. The name, the taxonomy word, the phase-versus-position
+column question, and the shipped sample are open decisions listed at the foot of
+the spec. One design claim in it — that a module-level variable in `WORKLET_SRC` is
+shared across every processor instance on one `AudioContext` — follows from the Web
+Audio spec but has not been run in a browser here; the spec says to confirm it in
+build step 1 before anything is written on top of it.
 
 **2026-08-27 — Codex.** Simplified the collection index to the title, a factual
 category line, and four directly linked instrument names with one-sentence
