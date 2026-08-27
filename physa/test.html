@@ -159,7 +159,7 @@ function loopMeasures(V, I, PH){
     }
   }
   return {mem: totE>0?memE/totE:0, harm: totE>0?harmE/totE:0,
-          pinch:(cnt&&pk>0)?(zc/cnt)/pk:0};
+          opening:(cnt&&pk>0)?(zc/cnt)/pk:0};
 }
 const lastMsg = m => m.length ? m[m.length-1] : null;
 const pct = x => (x*100).toFixed(2)+"%";
@@ -179,10 +179,10 @@ async function suite(){
     const r = await render({eq:"1200", freq:110});
     const h = harmonics(r.data, r.sr, 110, 0.4, 0.6);
     const m = loopMeasures(lastMsg(r.msgs).lv, lastMsg(r.msgs).li, lastMsg(r.msgs).lph);
-    log("   harmonic "+pct(h)+"   loop: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  pinch "+pct(m.pinch));
+    log("   harmonic "+pct(h)+"   loop: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  opening "+pct(m.opening));
     check("a plain resistor produces no harmonics", h < 0.001, "got "+pct(h));
     check("a plain resistor reads no memory", m.mem < 0.01, "got "+pct(m.mem));
-    check("a plain resistor pinches", m.pinch < 0.01, "got "+pct(m.pinch));
+    check("a plain resistor pinches", m.opening < 0.01, "got "+pct(m.opening));
   }
 
   /* 2. keyfollow, with no keyfollow rule written anywhere */
@@ -219,10 +219,10 @@ async function suite(){
     const r = await render({eq:"1200", freq:110, capF:1.4e-6});
     const h = harmonics(r.data, r.sr, 110, 0.4, 0.6);
     const m = loopMeasures(lastMsg(r.msgs).lv, lastMsg(r.msgs).li, lastMsg(r.msgs).lph);
-    log("   harmonic "+pct(h)+"   loop: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  pinch "+pct(m.pinch));
+    log("   harmonic "+pct(h)+"   loop: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  opening "+pct(m.opening));
     check("capacitance reads as memory — the false positive", m.mem > 0.5, pct(m.mem));
     check("and produces nothing above the fundamental", m.harm < 0.01, pct(m.harm));
-    check("and the loop stops passing through the origin", m.pinch > 0.5, pct(m.pinch));
+    check("and the loop stops passing through the origin", m.opening > 0.5, pct(m.opening));
     log("   The three together are the Schmidt et al. (2025) signature: an elliptical loop,", "note");
     log("   no harmonics, and a 'memory' reading that is capacitance rather than memristance.", "note");
   }
@@ -230,8 +230,8 @@ async function suite(){
     // the honest element, for contrast, at the same settings
     const r = await render({eq:HP, freq:110});
     const m = loopMeasures(lastMsg(r.msgs).lv, lastMsg(r.msgs).li, lastMsg(r.msgs).lph);
-    log("   memristor for contrast: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  pinch "+pct(m.pinch));
-    check("the memristor pinches where the RC does not", m.pinch < 0.02, pct(m.pinch));
+    log("   memristor for contrast: mem "+pct(m.mem)+"  harm "+pct(m.harm)+"  opening "+pct(m.opening));
+    check("the memristor pinches where the RC does not", m.opening < 0.02, pct(m.opening));
     check("and does produce harmonics", m.harm > 0.01, pct(m.harm));
   }
   {

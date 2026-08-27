@@ -183,7 +183,7 @@ element that wears while you hold it and one that reaches equilibrium at once.
 **The mould, and what the analysis panel does with it.** Constant M(q) = 1200 with
 1.4 µF in parallel, at 110 Hz:
 
-| | memory | harmonic | pinch |
+| | memory | harmonic | opening |
 |---|---|---|---|
 | plain resistor | 0.01% | 0.01% | 0.00% |
 | memristor (HP curve) | 3.79% | 4.13% | 0.00% |
@@ -553,7 +553,7 @@ the same reason, so this panel joins the reskin in having been *measured* and no
   in `--verd-hi`, sense resistor in `--iris`, branches in `--hot`, mould in
   `--slime`, all counted by nearest-colour against the `.terminal` palette.
 - **The mould share reproduces an independently measured number.** Constant
-  M = 1200 with 1.4 µF at 110 Hz reads 75.8%, against the 75.77% *pinch* recorded
+  M = 1200 with 1.4 µF at 110 Hz reads 75.8%, against the 75.77% *opening* recorded
   2026-08-25 for that same row and a closed form of 75.8%. Impedance reads 783 Ω
   against a closed-form 783 Ω.
 - Capacitive share scales with pitch as it must: 75.8% → 91.8% → 97.8% across
@@ -570,3 +570,34 @@ Left undone, unchanged: per-partial elements, MIDI against real hardware,
 cross-note memory, the 55 Hz provenance question. Added to that list: **nobody
 has looked at the Circuit panel**, and its 0.5 Hz replay in particular is a
 judgement about legibility that measurement cannot settle.
+
+2026-08-27 — Claude Code — **Renamed the `pinch` readout to `opening` and rewrote
+the Hysteresis caption.** Raised by Xyh, who read the panel the way the label
+invites: a high number as a strong memristor fingerprint. It is the reverse. The
+measure is `|I|` at the voltage zero-crossings as a share of peak current, so it
+reads **0 on a pinched loop** and climbs as the loop opens. Under the old label
+the ideal element scored 0.00% and the RC network scored 75.77%, which inverts the
+one distinction the panel exists to carry.
+
+The word survives where it is accurate: `test.html`'s assertions already read
+"a plain resistor pinches" against a *low* value, and those are unchanged.
+
+Renamed through: the legend, the `#openPct` id and its CSS rule, the
+`loopMeasures` return key and its doc comment, all of `test.html`, the table
+above, and the ROADMAP Mechanism line — which had also mis-named this as the
+measure that tells a memristor from an RC network. Two do: harmonic content
+separates them, and so does the opening. The ROADMAP now says which.
+
+The caption was replaced outright. It read "**Memory**, **harmonic** and
+**pinch** describe the loop", which fails
+[WRITING_VOICE_AGENT.md](../../WRITING_VOICE_AGENT.md)'s test for interface
+text — a reader could not act on it without having read something else. It now
+defines each readout, states which direction means what, and gives the two-line
+discriminator between a memristor and a capacitance in parallel.
+
+**Verified 2026-08-27**: the three reference rows reproduce exactly, with no
+number shifted by the rename — plain resistor 0.01 / 0.01 / 0.00%, memristor on
+the HP curve 3.79 / 4.13 / 0.00%, resistor + 1.4 µF 57.42 / 0.01 / 75.77%. All
+`test.html` checks pass and the console is clear. Read back from the live DOM
+rather than from the source, since `pinchPct` is gone and a stale id would have
+thrown silently into a readout nobody watches.

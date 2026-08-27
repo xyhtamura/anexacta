@@ -382,7 +382,7 @@ canvas{width:100%; display:block; border-radius:11px 15px 11px 15px;
 .legend{display:flex; flex-wrap:wrap; gap:6px 15px; margin:9px 0 0;
   font-size:11px; color:hsl(40 14% 58%)}
 .legend b{font-size:12.5px}
-#memPct{color:var(--hot)} #harmPct{color:var(--verd-hi)} #pinchPct{color:var(--iris)}
+#memPct{color:var(--hot)} #harmPct{color:var(--verd-hi)} #openPct{color:var(--iris)}
 
 /* ---------- deck ---------- */
 .deck{position:relative; padding:13px 15px 15px}
@@ -879,10 +879,13 @@ body::after{
         <div class="legend">
           <span>memory <b id="memPct">&mdash;</b></span>
           <span>harmonic <b id="harmPct">&mdash;</b></span>
-          <span>pinch <b id="pinchPct">&mdash;</b></span>
+          <span>opening <b id="openPct">&mdash;</b></span>
         </div>
-        <p class="cap"><b>Memory</b>, <b>harmonic</b> and <b>pinch</b> describe the loop.
-        Mould adds a memoryless parallel capacitance.</p>
+        <p class="cap"><b>Memory</b> is the share of the current that requires internal
+        state. <b>Harmonic</b> is the share above the fundamental; a linear capacitance
+        produces none. <b>Opening</b> is the current still flowing as the voltage crosses
+        zero, so 0% is a pinched loop. A memristor reads harmonics with a pinched loop; a
+        capacitance in parallel reads the reverse. <b>Mould</b> adds that capacitance.</p>
       </div>
 
       <div class="cell">
@@ -1703,7 +1706,9 @@ function drawScope(){
    Energy in those coefficients cannot occur without internal state.
    Harmonic: the share above the fundamental. A linear reactance has state and
    produces none of it, so this is what separates a memristor from an RC network.
-   Pinch: |I| at the voltage zero-crossings, as a share of peak current. */
+   Opening: |I| at the voltage zero-crossings, as a share of peak current. Named for
+   what it measures rather than for the fingerprint it tests: it reads 0 on a pinched
+   loop and climbs as the loop opens, so calling it `pinch` inverted every call site. */
 function loopMeasures(V, I, PH){
   const n=V.length; let memE=0, totE=0, harmE=0;
   for(let k=1;k<=16;k++){
@@ -1726,7 +1731,7 @@ function loopMeasures(V, I, PH){
     }
   }
   return {H: totE>0?memE/totE:0, harm: totE>0?harmE/totE:0,
-          pinch:(cnt&&peak>0)?(zc/cnt)/peak:0, peak};
+          opening:(cnt&&peak>0)?(zc/cnt)/peak:0, peak};
 }
 
 function drawLoop(){
@@ -1752,7 +1757,7 @@ function drawLoop(){
   g.fillText("V",pad+W-9,pad+H/2-7); g.fillText("I",pad+W/2+7,pad+10);
   ui("memPct").textContent = (m.H*100).toFixed(1)+"%";
   ui("harmPct").textContent = (m.harm*100).toFixed(1)+"%";
-  ui("pinchPct").textContent = (m.pinch*100).toFixed(1)+"%";
+  ui("openPct").textContent = (m.opening*100).toFixed(1)+"%";
 }
 
 /* ---- the circuit -------------------------------------------------------- */
