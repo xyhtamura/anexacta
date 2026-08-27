@@ -492,6 +492,13 @@ tuning) the pitch grid. New members add new axes, not new engines.
 
 ## Log
 
+**2026-08-27 — Codex.** Simplified the collection index to the title, a factual
+category line, and four directly linked instrument names with one-sentence
+descriptions. Removed the shared-language thesis panel, the separate launch
+buttons, and the public link to this notes file. Verified that the HTML has no
+remaining `suite.md`, `language`, `intro`, or `launch` references and that all
+four instrument targets exist. The suite's next development step is unchanged.
+
 **2026-08-14 — Codex.** Reskinned the collection landing page as a single,
 slightly asymmetric instrument cabinet using the shared design principles:
 hued near-neutrals, mixed flat and tactile surfaces, irregular radii, immediate
