@@ -300,7 +300,17 @@ re-testing after an edit; a plain reload of the same URL is not enough.
   *partial*, each wearing at its own rate, so the spectrum dulls unevenly and the
   instrument becomes genuinely additive rather than a monosynth with a network in
   it. That needs additive synthesis, which this page does not have, and it is the
-  single largest remaining piece.
+  single largest remaining piece. It is also the grammar step: once elements are
+  indexed by `n`, `hz`, `f0` and `r` are in scope and `M(q)` can keyfollow.
+- **Move the voice seam to Hz, in the same pass.** `noteOn(midi, vel)` takes MIDI
+  note numbers and converts with a hardcoded 12-EDO `hzOf`, where the suite's seam
+  is `startNote(id, hz, vel)` and every input just produces Hz. Tuning therefore
+  lives *inside* the instrument, which is why n-EDO never carried over from the
+  other members. Per-partial elements are the point at which per-element tuning
+  starts to matter, so the two belong in one pass; doing the seam first makes
+  n-EDO, and the rest of the shared surfaces and export path, something to adopt
+  rather than re-derive. The ribbon already feeds Hz directly (`ribHz`), so half
+  the path exists.
 - **No aesthetic verdict, and no screenshot.** Xyh has heard it and confirmed the
   level problem is fixed. The reskin of 2026-08-25 has been verified by
   measurement and by reading the DOM, but **not seen** — the browser pane has not
@@ -329,6 +339,15 @@ re-testing after an edit; a plain reload of the same URL is not enough.
   direction** — Physa implements the model directly — so there is no
   `DEPENDENCIES.md` contract. If the other three members later take this code
   rather than re-deriving it, that changes.
+- **The membership is asserted rather than earned, until the grammar lands.** The
+  suite's shared engine is the expression DSL, the Hz voice seam, n-EDO, the
+  surfaces, and MIDI/WAV export; this page has the surfaces and live MIDI and none
+  of the rest. Horn of Plenty was struck from the taxonomy on 2026-08-03 for that
+  same lack — "no voice seam, no grammar, and nothing that keyfollows." The
+  difference is that Horn of Plenty could not take the grammar and this can: the
+  two items at the top of Left undone are exactly what closes the gap. Monophony
+  is not part of the gap and is not a defect — one element means one history, and
+  a last-note-priority monosynth still has a voice seam.
 - **hysterion.** Archived. Its two tests run live here on the note being played,
   and this session added the third that separates them. Neither imports the other.
 - **[physics/GAPS.md](../../physics/GAPS.md)** § "Memory versus keyfollow-invariance
@@ -601,3 +620,20 @@ the HP curve 3.79 / 4.13 / 0.00%, resistor + 1.4 µF 57.42 / 0.01 / 75.77%. All
 `test.html` checks pass and the console is clear. Read back from the live DOM
 rather than from the source, since `pinchPct` is gone and a stale id would have
 thrown silently into a readout nobody watches.
+
+2026-08-29 — Claude Code — **Recorded the membership gap, no code.** Xyh asked
+whether Physa belongs in Anexacta given that it is monophonic and does not do the
+grammar. Checked it against the criterion `suite.md` already states — expression
+DSL, Hz voice seam, n-EDO, surfaces, MIDI/WAV export — and against the Horn of
+Plenty precedent of 2026-08-03. Findings: no `compileExpr`, no `MENV`, no
+`sum n=1..N`; the only compiled expression is `M(q)` at `index.html:1242`, baked
+to a 1024-entry LUT that never sees `hz`; `hzOf` is hardcoded 12-EDO; no MIDI file
+import or WAV export. The seam is `noteOn(midi, vel)` rather than
+`startNote(id, hz, vel)`, and that single mismatch is why n-EDO never carried over.
+
+Monophony turned out to be the wrong worry — it is not in the criterion, and the
+comment at `index.html:1343` argues it well. The grammar is the real gap. Wrote it
+into Left undone as a second bullet paired with per-partial elements, into
+Relation to the rest as the standing status, into `../suite.md`'s taxonomy entry,
+and into the root `ROADMAP.md` Next in Dev line. Nothing in the instrument changed
+and nothing was re-measured.

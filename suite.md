@@ -50,7 +50,10 @@ The family is sorted by **how a spectrum comes to be**:
   source text. The **cloth**. First *nonlinear* member — "FM with the algorithm chart
   dissolved into an equation."
 - **Physa** — *remembered*. Memristive network with non-volatile charge history and
-  senescence wear. The **flesh**.
+  senescence wear. The **flesh**. *Membership is pending the grammar* — it has the
+  surfaces and live MIDI, but no expression DSL, no keyfollow in `M(q)`, and no
+  n-EDO. Unlike Horn of Plenty below it is shaped to take all three; the
+  one-element-per-partial work is what earns the slot (`physa/physa.md`).
 - **Spolium** — *quoted*. Additive grain reader over an imported audio buffer; partials
   are resampled audio fragments reading along authored position paths $x(n,t)$. The
   **fragment** (architectural spolia).
@@ -648,3 +651,30 @@ compiler (`r:a:x`, `sum`, `x:f(n,t)`, `grain:f(r)`), interactive waveform/playhe
 readout table, log-ratio spectrum plot, surfaces, Web MIDI, and offline WAV export.
 Verified with automated offline test suite (`test.html`) across all 6 measurements.
 
+
+**2026-08-29 — Claude Code.** Two things, one code and one taxonomy.
+
+Fixed Spolium's silence. `WORKLET_SRC` is a template literal, and a template
+literal consumes escape sequences, so `wcompile`'s
+`String(expr).replace(/\*\*/g, "^")` reached the worklet as `.replace(/**/g, "^")`.
+`/**/` parses as a block comment, leaving `.replace(g, "^")`, and every
+`SpoliumProcessor` constructor threw `ReferenceError: g is not defined` before
+`process()` ever ran — silent live and in WAV export. Rewrote the substitution
+with `split`/`join`. **`test.html` had passed all six measurements against the
+bug** because it sliced the worklet out of the raw text of `index.html`, where the
+backslashes survive; it now evaluates the slice as a template literal, so a
+passing run means the shipping worklet passed. Detail in `spolium/spolium.md`.
+
+**Marked Physa's membership as pending the grammar.** Xyh asked whether it belongs
+here, given that it is monophonic and does not do the grammar. Against the
+criterion this file already states — expression DSL, Hz voice seam, n-EDO,
+surfaces, MIDI/WAV export — Physa has the surfaces and live MIDI and none of the
+rest: no `compileExpr`, no `MENV`, no `sum n=1..N`, an `M(q)` LUT that never sees
+`hz`, and a hardcoded 12-EDO `hzOf`. Its seam is `noteOn(midi, vel)` rather than
+`startNote(id, hz, vel)`, which is why n-EDO never carried over. Monophony is
+**not** part of the gap and should stop being raised as one — it is not in the
+criterion, and one element means one history. The taxonomy entry above now says
+so, and the Hz seam is folded into the one-element-per-partial work in
+`physa/physa.md`, since per-element tuning is when it starts to matter. Unlike
+Horn of Plenty, which was struck on 2026-08-03 for the same lack, Physa is shaped
+to take the grammar; the slot is a promissory note rather than a mistake.
