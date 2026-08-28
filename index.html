@@ -1,82 +1,40 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Anexacta is a collection of four equation-first browser synthesizers sharing one mathematical language.">
-  <title>Anexacta — equation-first synthesizers</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anexacta</title>
+  <meta name="description" content="Anexacta — five equation-first browser synthesizers.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232a1f33'/><path d='M6 22 L12 10 L18 18 L26 8' stroke='%23d4af37' stroke-width='2.5' fill='none' stroke-linecap='round'/><circle cx='12' cy='10' r='2' fill='%235fc9b3'/><circle cx='18' cy='18' r='2' fill='%23e0707f'/><circle cx='26' cy='8' r='2' fill='%23d4af37'/></svg>">
   <style>
     :root {
-      color-scheme: light;
-      --ink: hsl(285 31% 14%);
-      --muted: hsl(285 12% 38%);
-      --paper: hsl(165 21% 91%);
-      --paper-deep: hsl(165 19% 84%);
-      --amber: hsl(45 74% 54%);
-      --amber-soft: hsl(45 48% 82%);
-      --aqua: hsl(165 58% 39%);
-      --aqua-soft: hsl(165 35% 80%);
-      --purple: hsl(285 52% 48%);
-      --purple-soft: hsl(285 30% 82%);
-      --line: hsl(285 18% 27% / .22);
-      --shadow: hsl(285 38% 16% / .18);
+      --bg: #ece7de;
+      --paper: #f7f3ec;
+      --ink: #1f1a24;
+      --muted: #6f6577;
+      --line: hsl(285 18% 20% / .18);
+      --gold: #b38b22;
+      --purple: #6b3582;
+      --teal: #236e65;
     }
 
     * { box-sizing: border-box; }
 
-    html {
-      min-height: 100%;
-      background: var(--paper-deep);
-    }
-
     body {
-      min-height: 100vh;
       margin: 0;
-      overflow-x: hidden;
-      color: var(--ink);
+      min-height: 100vh;
       background:
-        radial-gradient(ellipse at 9% 13%, hsl(45 82% 72% / .62), transparent 31rem),
-        radial-gradient(ellipse at 91% 23%, hsl(285 54% 75% / .42), transparent 34rem),
-        radial-gradient(ellipse at 54% 96%, hsl(165 64% 62% / .36), transparent 38rem),
-        linear-gradient(118deg, var(--paper), hsl(165 18% 86%));
-      font-family: "Averia Sans Libre", "Segoe UI", sans-serif;
-    }
-
-    body::before,
-    body::after {
-      position: fixed;
-      z-index: -1;
-      content: "";
-      pointer-events: none;
-      filter: blur(2px);
-    }
-
-    body::before {
-      top: 8vh;
-      right: -7rem;
-      width: 17rem;
-      height: 24rem;
-      border-radius: 61% 39% 54% 46% / 41% 62% 38% 59%;
-      background: linear-gradient(145deg, hsl(285 76% 62% / .18), hsl(165 76% 48% / .2));
-      box-shadow: inset 1rem 1rem 3rem hsl(45 88% 72% / .22);
-      transform: rotate(-12deg);
-    }
-
-    body::after {
-      bottom: -9rem;
-      left: -5rem;
-      width: 22rem;
-      height: 18rem;
-      border-radius: 34% 66% 37% 63% / 58% 32% 68% 42%;
-      background: hsl(45 82% 62% / .18);
-      box-shadow: inset -2rem -1rem 4rem hsl(165 72% 46% / .16);
-      transform: rotate(19deg);
+        radial-gradient(circle at 18% 12%, hsl(45 55% 92% / .85), transparent 45%),
+        radial-gradient(circle at 82% 84%, hsl(165 42% 90% / .75), transparent 50%),
+        var(--bg);
+      color: var(--ink);
+      font: 400 1rem/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     main {
-      width: min(1060px, calc(100% - 2rem));
+      max-width: 58rem;
       margin: 0 auto;
-      padding: clamp(2.5rem, 7vw, 5.5rem) 0 2.5rem;
+      padding: clamp(1.5rem, 4vw, 3.5rem) 1.25rem 4rem;
     }
 
     header {
@@ -178,6 +136,15 @@
       margin-left: 9%;
     }
 
+    article:nth-child(5) {
+      --edge: hsl(45 74% 36% / .36);
+      --surface: linear-gradient(108deg, hsl(45 52% 84% / .9), hsl(165 35% 85% / .78));
+      --radius: 3.6rem 2.5rem 4.8rem 2.2rem / 2.8rem 4.2rem 2.6rem 3.8rem;
+      --tilt: -.25deg;
+      width: 90%;
+      margin-left: 3%;
+    }
+
     .identity {
       flex: 0 0 clamp(10rem, 23vw, 15rem);
     }
@@ -230,7 +197,8 @@
       article,
       article:nth-child(2),
       article:nth-child(3),
-      article:nth-child(4) {
+      article:nth-child(4),
+      article:nth-child(5) {
         align-self: stretch;
         width: 100%;
         margin-left: 0;
@@ -250,7 +218,7 @@
 <body>
   <main>
     <header>
-      <p class="kicker">four equation-first browser synthesizers</p>
+      <p class="kicker">five equation-first browser synthesizers</p>
       <h1>Anexacta</h1>
     </header>
 
@@ -282,6 +250,13 @@
           <h2><a href="./physa/">Physa</a></h2>
         </div>
         <p>A synthesizer built around a charge-controlled memristor with an editable memristance curve, persistent state, and wear.</p>
+      </article>
+      <article>
+        <div class="identity">
+          <span class="mode">quoted</span>
+          <h2><a href="./spolium/">Spolium</a></h2>
+        </div>
+        <p>A granular synthesizer for writing reading heads as equations over an imported audio buffer with transposition, position paths, and grain scattering.</p>
       </article>
     </section>
 

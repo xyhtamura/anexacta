@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spolium — offline measurement suite</title>
+<style>
+body { margin: 0; padding: 20px; background: #14171d; color: #d8dee8; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+h1 { font-size: 16px; letter-spacing: .12em; text-transform: uppercase; color: #d4af37; margin: 0 0 4px; }
+p.sub { color: #8b99ae; margin: 0 0 18px; max-width: 90ch; }
+button { font: inherit; background: #2b3342; color: #d4af37; border: 1px solid #3b4559; border-radius: 4px; padding: 8px 16px; cursor: pointer; text-transform: uppercase; letter-spacing: .05em; font-weight: bold; }
+button:hover { border-color: #d4af37; background: #3b4559; color: #f3cf5b; }
+pre { white-space: pre-wrap; margin: 16px 0 0; line-height: 1.55; }
+.pass { color: #6fd6a8; font-weight: bold; }
+.fail { color: #e0707f; font-weight: bold; }
+.note { color: #8b99ae; }
+.hd { color: #d4af37; font-weight: bold; margin-top: 12px; display: inline-block; }
+</style>
+</head>
+<body>
+<h1>Spolium — offline measurement suite</h1>
+<p class="sub">Renders the actual shipping worklet extracted from <code>index.html</code> in an <code>OfflineAudioContext</code> and measures transposition accuracy, position independence, grain seam ripple, scatter stationarity, click discontinuities, and keyfollow spectral preservation.</p>
+<button id="run">Run Suite</button>
+<pre id="out"></pre>
+<script>
+"use strict";
+const out = document.getElementById("out");
+const log = (s, cls) => { out.innerHTML += (cls ? `<span class="${cls}">${s}</span>` : s) + "\n"; };
+let fails = 0;
+function check(name, ok, detail) {
+  if (!ok) fails++;
+  log((ok ? "  PASS  " : "  FAIL  ") + name + (detail ? "   " + detail : ""), ok ? "pass" : "fail");
+}
+
+/* Extract shipping worklet directly from index.html */
+async function workletSource() {
+  const html = await (await fetch("./index.html?ts=" + Date.now())).text();
+  const prefix = "const WORKLET_SRC = `";
+  const a = html.indexOf(prefix);
+  if (a < 0) throw new Error("WORKLET_SRC literal not found in index.html");
+  const b = html.indexOf("`;", a + prefix.length);
+  if (b < 0) throw new Error("WORKLET_SRC literal not terminated");
+  return html.slice(a + prefix.length, b);
+}
+
+/* Helper to render worklet offline with synthetic test source */
+let WORKLET_CODE = null;
+
+async function render(opts) {
+  const sr = 48000;
+  const secs = opts.secs || 1.5;
+  const totalSamples = Math.round(sr * secs);
+  const ctx = new OfflineAudioContext(1, totalSamples, sr);
+
+  const blob = new Blob([WORKLET_CODE], { type: "application/javascript" });
+  const url = URL.createObjectURL(blob);
+  await ctx.audioWorklet.addModule(url);
+  URL.revokeObjectURL(url);
+
+  const srcBuf = opts.srcBuf || generateSine(sr, opts.srcDur || 4.0, opts.srcFreq || 440);
+
+  const po = {
+    srcBuf: srcBuf,
+    heads: opts.heads || [{ ratio: opts.ratio || 1, amp: 1, xExpr: opts.xExpr || "t", grainExpr: opts.grainExpr || "90" }],
+    fRef: opts.fRef || 440,
+    jitter: opts.jitter !== undefined ? opts.jitter : 0,
+    startAt: 0,
+    relAt: opts.relAt !== undefined ? opts.relAt : (secs - 0.2)
+  };
+
+  const node = new AudioWorkletNode(ctx, "spolium-grain-reader", {
+    numberOfInputs: 0,
+    numberOfOutputs: 1,
+    outputChannelCount: [1],
+    processorOptions: po
+  });
+
+  const f0Param = node.parameters.get("f0");
+  const playFreq = opts.playFreq || 440;
+  f0Param.setValueAtTime(playFreq, 0);
+
+  if (opts.glideTo) {
+    f0Param.setValueAtTime(playFreq, 0.1);
+    f0Param.linearRampToValueAtTime(opts.glideTo, 0.1 + (opts.glideDur || 0.15));
+  }
+
+  node.connect(ctx.destination);
+  const rendered = await ctx.startRendering();
+  return { data: rendered.getChannelData(0), sr, srcBuf };
+}
+
+function generateSine(sr, durSec, freq, decayRate) {
+  const n = Math.round(sr * durSec);
+  const buf = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const env = decayRate ? Math.exp(-decayRate * t) : 1.0;
+    buf[i] = Math.sin(2 * Math.PI * freq * t) * env;
+  }
+  return buf;
+}
+
+/* Measurement Algorithms */
+
+function zeroCrossPitch(data, sr, guess, startSec, winSec) {
+  const start = Math.round(startSec * sr);
+  const end = start + Math.round(winSec * sr);
+  const crossings = [];
+
+  for (let i = start; i < end - 1; i++) {
+    if (data[i] <= 0 && data[i + 1] > 0) {
+      const frac = -data[i] / (data[i + 1] - data[i]);
+      crossings.push(i + frac);
+    }
+  }
+
+  if (crossings.length < 4) return guess;
+  const totalPeriods = crossings.length - 1;
+  const avgPeriodSamples = (crossings[crossings.length - 1] - crossings[0]) / totalPeriods;
+  return sr / avgPeriodSamples;
+}
+
+function dftPeakEnergy(data, sr, guess, startSec, winSec) {
+  const off = Math.round(startSec * sr), W = Math.round(winSec * sr);
+  if (off + W > data.length) throw new Error("Window past end of buffer");
+  let best = 0;
+  const span = Math.max(10, guess * 0.05);
+  for (let f = guess - span; f <= guess + span; f += 0.1) {
+    let re = 0, im = 0;
+    const w = 2 * Math.PI * f / sr;
+    for (let i = 0; i < W; i++) {
+      const win = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / W);
+      const s = data[off + i] * win;
+      re += s * Math.cos(w * i);
+      im += s * Math.sin(w * i);
+    }
+    const e = re * re + im * im;
+    if (e > best) best = e;
+  }
+  return Math.sqrt(best) / W;
+}
+
+function calcRMS(data, start, length) {
+  let s = 0;
+  for (let i = 0; i < length; i++) s += data[start + i] * data[start + i];
+  return Math.sqrt(s / length);
+}
+
+function maxSampleDiff(data) {
+  let maxD = 0;
+  for (let i = 1; i < data.length; i++) {
+    const d = Math.abs(data[i] - data[i - 1]);
+    if (d > maxD) maxD = d;
+  }
+  return maxD;
+}
+
+/* =========================================================================
+   TEST SUITE EXECUTION
+   ========================================================================= */
+
+async function runSuite() {
+  out.innerHTML = "";
+  fails = 0;
+  WORKLET_CODE = await workletSource();
+  log(`Worklet extracted from index.html (${WORKLET_CODE.length} chars)\n`, "note");
+
+  /* 1. Transposition accuracy */
+  log("1. Transposition accuracy (Source: 440 Hz pure sine, fRef = 440 Hz)", "hd");
+  {
+    const r1 = await render({ ratio: 1, playFreq: 440, secs: 1.0 });
+    const f1 = zeroCrossPitch(r1.data, r1.sr, 440, 0.3, 0.4);
+    log(`   r = 1.0 -> measured ${f1.toFixed(2)} Hz (target: 440.00 Hz)`);
+    check("r = 1 transposition accuracy <= 0.1%", Math.abs(f1 - 440) / 440 <= 0.001, `${f1.toFixed(2)} Hz`);
+
+    const r15 = await render({ ratio: 1.5, playFreq: 440, secs: 1.0 });
+    const f15 = zeroCrossPitch(r15.data, r15.sr, 660, 0.3, 0.4);
+    log(`   r = 1.5 -> measured ${f15.toFixed(2)} Hz (target: 660.00 Hz, carrier: 660 Hz + Δf 2.18 Hz grain seam)`);
+    check("r = 1.5 transposition accuracy <= 1.0%", Math.abs(f15 - 660) / 660 <= 0.01, `${f15.toFixed(2)} Hz`);
+
+    const rSemi = Math.pow(2, 1/12);
+    const targetSemi = 440 * rSemi;
+    const r12 = await render({ ratio: rSemi, playFreq: 440, secs: 1.0 });
+    const f12 = zeroCrossPitch(r12.data, r12.sr, targetSemi, 0.3, 0.4);
+    log(`   r = 2^(1/12) -> measured ${f12.toFixed(2)} Hz (target: ${targetSemi.toFixed(2)} Hz, carrier: 466.16 Hz - Δf 3.95 Hz grain seam)`);
+    check("r = 2^(1/12) transposition accuracy <= 1.0%", Math.abs(f12 - targetSemi) / targetSemi <= 0.01, `${f12.toFixed(2)} Hz`);
+  }
+
+  /* 2. Position independence */
+  log("\n2. Position independence (Speed decoupling from transposition)", "hd");
+  {
+    const rFwd = await render({ ratio: 1, xExpr: "t", playFreq: 440, secs: 1.2 });
+    const fFwd = zeroCrossPitch(rFwd.data, rFwd.sr, 440, 0.3, 0.5);
+
+    const rHalf = await render({ ratio: 1, xExpr: "0.5*t", playFreq: 440, secs: 1.2 });
+    const fHalf = zeroCrossPitch(rHalf.data, rHalf.sr, 440, 0.3, 0.5);
+
+    const rFreeze = await render({ ratio: 1, xExpr: "0.4", playFreq: 440, secs: 1.2 });
+    const fFreeze = zeroCrossPitch(rFreeze.data, rFreeze.sr, 440, 0.3, 0.5);
+
+    log(`   x : t     pitch = ${fFwd.toFixed(2)} Hz`);
+    log(`   x : 0.5*t pitch = ${fHalf.toFixed(2)} Hz (carrier: 440 Hz + Δf 2.18 Hz)`);
+    log(`   x : 0.4   pitch = ${fFreeze.toFixed(2)} Hz (carrier: 440 Hz + Δf 4.35 Hz)`);
+
+    check("half-speed read (0.5*t) maintains unchanged carrier pitch (<= 1%)", Math.abs(fHalf - fFwd) / fFwd <= 0.01, `diff ${Math.abs(fHalf - fFwd).toFixed(3)} Hz`);
+    check("frozen read (0.4) maintains unchanged carrier pitch (<= 1.5%)", Math.abs(fFreeze - fFwd) / fFwd <= 0.015, `diff ${Math.abs(fFreeze - fFwd).toFixed(3)} Hz`);
+  }
+
+  /* 3. Grain seam / window ripple */
+  log("\n3. Grain seam (sqrt(Hann) at 50% overlap on constant sine)", "hd");
+  {
+    const r = await render({ ratio: 1, xExpr: "t", jitter: 0, grainExpr: "90", secs: 2.0 });
+    const sr = r.sr;
+    const frameLen = Math.round(sr * 0.09); // 90ms grain frame length
+    const startIdx = Math.round(sr * 0.4);
+    const endIdx = Math.round(sr * 1.6);
+    const numFrames = Math.floor((endIdx - startIdx) / frameLen);
+    const rmsVals = [];
+
+    for (let i = 0; i < numFrames; i++) {
+      const st = startIdx + i * frameLen;
+      rmsVals.push(calcRMS(r.data, st, frameLen));
+    }
+
+    const mean = rmsVals.reduce((a, b) => a + b, 0) / rmsVals.length;
+    const variance = rmsVals.reduce((a, b) => a + (b - mean) * (b - mean), 0) / rmsVals.length;
+    const cv = Math.sqrt(variance) / mean;
+
+    log(`   Sustained RMS = ${mean.toFixed(3)}, Env CV = ${(cv * 100).toFixed(3)}%`);
+    check("grain overlap envelope CV < 0.02 (no 3dB ripple)", cv < 0.02, `CV = ${(cv * 100).toFixed(3)}%`);
+  }
+
+  /* 4. Scatter stationarity */
+  log("\n4. Scatter stationarity (x : rnd(0,dur) on 9x decaying source — 6-head bed)", "hd");
+  {
+    const decaySrc = generateSine(48000, 3.0, 440, 1.1);
+    const heads = [];
+    for (let i = 0; i < 6; i++) heads.push({ ratio: 1, amp: 1, xExpr: "rnd(0,dur)", grainExpr: "45" });
+    const r = await render({
+      srcBuf: decaySrc,
+      srcDur: 3.0,
+      heads: heads,
+      jitter: 0.2,
+      secs: 4.5
+    });
+
+    const headRms = calcRMS(r.data, Math.round(r.sr * 0.5), Math.round(r.sr * 1.5));
+    const tailRms = calcRMS(r.data, Math.round(r.sr * 2.5), Math.round(r.sr * 1.5));
+    const ratio = headRms / (tailRms || 1e-4);
+
+    log(`   Head RMS (0.5..2.0s) = ${headRms.toFixed(3)}, Tail RMS (2.5..4.0s) = ${tailRms.toFixed(3)}`);
+    log(`   Head/Tail RMS Ratio = ${ratio.toFixed(3)}`);
+    check("scatter stationarity head/tail RMS balance ~ 1.0 (0.85 .. 1.15)", ratio >= 0.85 && ratio <= 1.15, `Ratio = ${ratio.toFixed(3)}`);
+  }
+
+  /* 5. Discontinuity / Click check */
+  log("\n5. Discontinuity / No clicks across note-on, glide, and release", "hd");
+  {
+    const r = await render({
+      ratio: 1,
+      playFreq: 220,
+      glideTo: 440,
+      glideDur: 0.15,
+      relAt: 1.0,
+      secs: 1.6
+    });
+
+    const maxD = maxSampleDiff(r.data);
+    log(`   Max sample-to-sample difference = ${maxD.toFixed(4)}`);
+    check("sample transitions remain continuous (< 0.25)", maxD < 0.25, `max delta = ${maxD.toFixed(4)}`);
+  }
+
+  /* 6. Keyfollow spectrum preservation */
+  log("\n6. Keyfollow (Two-partial grammar played at C3 vs C5)", "hd");
+  {
+    const twoHeadOpts = {
+      heads: [
+        { ratio: 1.0, amp: 1.0, xExpr: "t", grainExpr: "90" },
+        { ratio: 2.0, amp: 0.5, xExpr: "t", grainExpr: "90" }
+      ],
+      secs: 1.0
+    };
+
+    const rC3 = await render(Object.assign({}, twoHeadOpts, { playFreq: 130.81 }));
+    const h1_C3 = dftPeakEnergy(rC3.data, rC3.sr, 130.81, 0.3, 0.4);
+    const h2_C3 = dftPeakEnergy(rC3.data, rC3.sr, 261.63, 0.3, 0.4);
+    const ratioC3 = h2_C3 / (h1_C3 || 1e-4);
+
+    const rC5 = await render(Object.assign({}, twoHeadOpts, { playFreq: 523.25 }));
+    const h1_C5 = dftPeakEnergy(rC5.data, rC5.sr, 523.25, 0.3, 0.4);
+    const h2_C5 = dftPeakEnergy(rC5.data, rC5.sr, 1046.50, 0.3, 0.4);
+    const ratioC5 = h2_C5 / (h1_C5 || 1e-4);
+
+    log(`   C3 (130 Hz): H2/H1 energy ratio = ${ratioC3.toFixed(3)}`);
+    log(`   C5 (523 Hz): H2/H1 energy ratio = ${ratioC5.toFixed(3)}`);
+    check("spectral amplitude ratios preserved across octaves within tolerance", Math.abs(ratioC3 - ratioC5) < 0.15, `C3: ${ratioC3.toFixed(3)} vs C5: ${ratioC5.toFixed(3)}`);
+  }
+
+  log("\n" + (fails === 0 ? "All checks passed." : `${fails} check(s) failed.`), fails === 0 ? "pass" : "fail");
+
+  const reportUrl = new URLSearchParams(window.location.search).get("report");
+  if (reportUrl) {
+    fetch(reportUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fails, output: out.innerText })
+    }).catch(() => {});
+  }
+}
+
+document.getElementById("run").addEventListener("click", () => {
+  runSuite().catch(e => { log("\nERROR: " + e.message + "\n" + e.stack, "fail"); });
+});
+if (window.location.search.includes("autorun")) {
+  window.addEventListener("DOMContentLoaded", () => {
+    runSuite().catch(e => { log("\nERROR: " + e.message + "\n" + e.stack, "fail"); });
+  });
+}
+</script>
+</body>
+</html>

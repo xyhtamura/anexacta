@@ -13,6 +13,8 @@ Shipped (2026-07): **Aliquoto**, **Cella**, **Moire** — each a single self-con
 `index.html` in its own subdirectory of the shared repository.
 Shipped (2026-08): **Physa**, the memristive element as its own member, and the
 first entity in the suite that carries state between evaluations.
+Shipped (2026-08): **Spolium**, the quoted spectrum granular instrument with
+continuous cubic Hermite resampling and equation-driven read heads.
 
 ---
 
@@ -35,7 +37,7 @@ kinship is 1950s–70s avant-garde (Xenakis, GENDYN, the Barrons) — organic-fr
 formal — but achieved with the *purity of the digital*: the irregularity lives in
 the numbers, not in analog hardware grit.
 
-## The three, and the taxonomy
+## The taxonomy
 
 The family is sorted by **how a spectrum comes to be**:
 
@@ -47,6 +49,11 @@ The family is sorted by **how a spectrum comes to be**:
   the spectrum is the interference, containing frequencies present nowhere in the
   source text. The **cloth**. First *nonlinear* member — "FM with the algorithm chart
   dissolved into an equation."
+- **Physa** — *remembered*. Memristive network with non-volatile charge history and
+  senescence wear. The **flesh**.
+- **Spolium** — *quoted*. Additive grain reader over an imported audio buffer; partials
+  are resampled audio fragments reading along authored position paths $x(n,t)$. The
+  **fragment** (architectural spolia).
 
 Reserved / adjacent members:
 
@@ -631,3 +638,13 @@ Still undone, and the reason the per-sibling placements above are not crossed of
 per partial, so the spectrum does not yet dull unevenly. That is the piece that
 makes the element genuinely additive rather than a monosynth with a network in it,
 and it is Physa's Next in Dev.
+
+**2026-08-28 — Antigravity.** Built **Spolium** (`anexacta/spolium/`, notes in
+`spolium/spolium.md`) as the fifth member of Anexacta, claiming the *quoted* taxonomy
+slot. Implemented the additive grain reader with cubic Hermite 4-point continuous
+resampling, dual grain stream scheduling with $\sqrt{\text{Hann}}$ windowing and onset
+jitter, module-level buffer sharing in `AudioWorkletGlobalScope`, full expression DSL
+compiler (`r:a:x`, `sum`, `x:f(n,t)`, `grain:f(r)`), interactive waveform/playhead UI,
+readout table, log-ratio spectrum plot, surfaces, Web MIDI, and offline WAV export.
+Verified with automated offline test suite (`test.html`) across all 6 measurements.
+
