@@ -39,7 +39,11 @@ async function workletSource() {
   if (a < 0) throw new Error("WORKLET_SRC literal not found in index.html");
   const b = html.indexOf("`;", a + prefix.length);
   if (b < 0) throw new Error("WORKLET_SRC literal not terminated");
-  return html.slice(a + prefix.length, b);
+  const raw = html.slice(a + prefix.length, b);
+  // index.html carries this in a template literal, so evaluate it as one. Slicing
+  // the raw text instead would test a string the page never runs: the literal
+  // strips escapes, and a lost backslash silently changed a regex into a comment.
+  return (0, eval)("`" + raw + "`");
 }
 
 /* Helper to render worklet offline with synthetic test source */

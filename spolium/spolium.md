@@ -126,3 +126,28 @@ All 6 offline measurements passed.
 - Created reference `sample.wav` and `ASSETS.md`.
 - Updated suite documentation (`index.html`, `README.md`, `suite.md`) and root `ROADMAP.md`.
 
+**2026-08-29 — Claude Code.** Fixed silent playback.
+
+- **Cause.** `WORKLET_SRC` is a template literal, and a template literal consumes
+  escape sequences. `wcompile`'s line `String(expr).replace(/\*\*/g, "^")` reached
+  the worklet as `String(expr).replace(/**/g, "^")` — `/**/` parses as a block
+  comment, leaving `.replace(g, "^")`, so every `SpoliumProcessor` constructor threw
+  `ReferenceError: g is not defined` before `process()` ever ran. Every voice was
+  silent, live and in the WAV export. That line held the only backslashes in the
+  worklet, so it was the only casualty.
+- **Fix.** Rewrote the substitution as `split("**").join("^").split("^").join("**")`,
+  which is exactly equivalent and cannot be damaged by the literal.
+- **Why the suite missed it.** `test.html` sliced the worklet out of the raw text of
+  `index.html`, so it measured a string with the backslashes still in place — a
+  different program from the one the page runs. It now evaluates the slice as a
+  template literal, so a passing run means the shipping worklet passed.
+- **Verified.** In Edge against the root server: default grammar renders at analyser
+  peak 0.675 / RMS 0.264 with no `processorerror` and head-1 cursor advancing; all
+  seven presets sound (peak 0.46..0.74, 1..16 heads, no errors); `^` inside a worklet
+  `x` and `grain` expression still resolves. All 6 offline measurements pass against
+  the corrected extraction.
+- **Left undone.** `assemble.py` cannot run: `assemble_body.py`, `assemble_worklet.py`,
+  and `assemble_engine_1..3.py` are absent and only their `__pycache__` `.pyc` files
+  remain, so `index.html` is now the source of truth for the worklet and both fixes
+  were made there. Rebuilding from `assemble.py` would overwrite them. `build_spolium.py`
+  and `build_spolium_clean.py` are scratch leftovers that build nothing.

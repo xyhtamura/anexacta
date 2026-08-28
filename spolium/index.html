@@ -298,7 +298,9 @@ const WENV = {
 const WKEYS = Object.keys(WENV), WVALS = WKEYS.map(k => WENV[k]);
 
 function wcompile(expr, vars) {
-  expr = String(expr).replace(/\*\*/g, "^").replace(/\^/g, "**");
+  // No backslashes here: this source is carried in a template literal, which eats
+  // them before the worklet ever sees it. split/join does the same job literally.
+  expr = String(expr).split("**").join("^").split("^").join("**");
   return new Function(...vars, ...WKEYS, "return (" + expr + ");");
 }
 
