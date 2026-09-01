@@ -114,6 +114,44 @@ All 6 offline measurements passed.
 
 ---
 
+## 7. Left undone
+
+**Next in Dev: arc 2, the offline stationarizer — but measure before building it.**
+
+The MVP is complete: build steps 1–7 of the spec all landed. What follows was
+deferred on purpose, and the reasoning is recovered here from `sampler-mvp.md` §10,
+which the build commit deleted (`git show d7a4f42^:sampler-mvp.md` for the whole
+419-line spec).
+
+- **Arc 2 — the offline stationarizer.** Horn of Plenty's winnow/sow/flatten engine
+  (`../../hindcasts/horn-of-plenty/`) as a pre-pass producing a second buffer,
+  selectable per head as the thing `x` reads into. `suite.md` has named that engine
+  the candidate for this member since 2026-08-03. It was left out because
+  `x : rnd(0,dur)` already covers the ordinary case, and the chain earns its cost
+  only on sources that *run out* — a decaying source that a uniform random read
+  makes quiet-heavy.
+  **Measure that claim first.** Test 4 in `test.html` runs `x : rnd(0,dur)` over a
+  9× exponential decay source and passes at head/tail ratio 0.980, but it measures
+  stationarity *in time*, not the quiet-heavy problem, which is a level question:
+  how the output sits against the loud regions of the source. A short energy
+  measurement settles whether arc 2 is worth building, and costs nothing next to
+  the winnow chain.
+- **Multiple sources.** The grammar reserves the slot (`src : name`) and the parser
+  has no `src` statement. Deliberate — do not build it without a reason to.
+- **A `pos()` built-in with an anti-repeat window.** Needed only for short sources
+  where the random draw collides audibly. The spec says measure before building,
+  and nothing has been measured.
+- **Spectral or phase-vocoder transposition — rejected, not deferred.** Granular is
+  what the grammar describes; a phase vocoder would change what `x` means.
+- **The build cannot be re-run, and re-running it would revert a fix.**
+  `assemble.py` imports `assemble_body`, `assemble_worklet` and
+  `assemble_engine_1..3`, none of which were ever committed — only their
+  `__pycache__` `.pyc` files, in `d7a4f42`. So `index.html` is the source of truth
+  for the worklet. If those modules are recovered, the template-literal escaping
+  has to be fixed at the embed step before `assemble.py` is run again, or the
+  2026-08-29 fix below is silently undone. Escape backslashes and backticks when
+  wrapping, or emit the worklet with `json.dumps` and drop the template literal.
+
 ## Log
 
 **2026-08-27 — Claude Code.** Wrote the MVP specification (`sampler-mvp.md`).
@@ -151,3 +189,22 @@ All 6 offline measurements passed.
   remain, so `index.html` is now the source of truth for the worklet and both fixes
   were made there. Rebuilding from `assemble.py` would overwrite them. `build_spolium.py`
   and `build_spolium_clean.py` are scratch leftovers that build nothing.
+
+**2026-08-29 — Claude Code (second entry).** Documentation only, no code. Spolium
+had no recorded next step: this file went from the test suite straight to the Log,
+and the root `ROADMAP.md` named only Physa's work and suite arc 1.1. The plan was
+not missing, it was **deleted** — `sampler-mvp.md`, 419 lines, was removed by the
+same commit that created Spolium (`d7a4f42`), taking its §10 deferred-work list and
+§14 open decisions with it into history.
+
+Recovered §10 into the new `## 7. Left undone` above, with the arc 2 rationale
+intact, and added a Next in Dev line to the Anexacta entry in `ROADMAP.md`. Added
+one thing the spec could not have known: test 4 measures stationarity in time, not
+the quiet-heavy level problem that motivates arc 2, so it neither confirms nor
+refutes the case for building it — measure before starting. Also recorded that
+re-running `assemble.py` would revert this morning's template-literal fix, since
+that is the trap most likely to catch the next agent.
+
+Of the spec's four open decisions, three are settled by what shipped: the name is
+Spolium, the taxonomy word is *quoted*, and the position column took the phase
+slot. The fourth, the shipped sample, is answered by `sample.wav` and `ASSETS.md`.
