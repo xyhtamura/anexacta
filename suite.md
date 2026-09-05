@@ -127,11 +127,36 @@ signal-source registry described in arc 1.1 below.
    (`../xyhtamura.github.io/roil/`) — 1D Perlin drives pitch/cutoff/Q/amp, each
    with independent depth + rate, control-rate ticked and smoothed. `noise(x)`
    is that primitive (detail in `aliquoto/aliquoto.md` → "Roil-style noise()").
-2. **1.2 — file drop.** Aliquoto first (richest gain infra; keyfollow vocoder is
-   the flagship claim); cella's drive port in the same arc (seam already designed —
-   a dropped file is the first guest, no need to wait for a harvested member);
-   moire third (established copy pattern). The infra (decode/resample/analysis)
-   doubles as groundwork for member 5.
+2. **1.2 — file drop. Shipped 2026-09-06 in all three.** A dropped sound is read
+   as *numbers*, never as audio, so the sines stay sines by construction. Three
+   call shapes, one question each:
+
+   | call | answers |
+   | --- | --- |
+   | `file1(t)` | the file's loudness at note age `t`, 0..1 |
+   | `file1(hz,t)` | its energy in the band at `hz`, 0..1 |
+   | `wave1(t)` | its sample value — the file's own signal |
+
+   **`file1(hz,t)` in a gain line is the keyfollow vocoder**, and it is the claim
+   the arc existed for: each partial asks about *its own* `hz`, and partials
+   keyfollow, so the analysis bands move with the played note. No fixed-band
+   vocoder does this and no subtractive synth can — filtering a file is not
+   dereferencing it per-partial.
+
+   **`wave1(t)` is moire's**: `op(1, k*wave1(t))` is PM cross-synthesis, the file
+   itself becoming the modulator rather than a description of it.
+
+   **Cella needed no new control.** It already drops a file in as excitation, so
+   the same buffer is analysed at load: one dropped sound both rings the room and
+   says how the room should be shaped.
+
+   Analysis is a 12-band-per-octave log grid from A0, not linear FFT bins, because
+   the question is "how much energy is at this partial's hz" and a partial's hz is
+   musical. It runs once on the main thread; only the lookup crosses into the
+   worklet, and that half lives in the shared block.
+
+   **A file crosses once per audio context**, not once per note — see the
+   2026-09-06 entry. The decode/analysis infra doubles as groundwork for member 5.
 3. **1.3 — negative lines.** Prototype in cella (physics home), port the series
    zero to moire; aliquoto needs nothing (`env` dip already is it).
 
@@ -139,6 +164,20 @@ One dropped file across all three tools = the taxonomy demo: aliquoto
 *dereferences* it, cella is *rung* by it, moire *weaves* with it.
 
 ### VST port (penciled 2026-07-13; after the 1.x arcs)
+**The destination, stated by Xyh 2026-09-06: plugins he can load in Reaper.** The
+1.x arcs are in service of that and are being finished first, deliberately — the
+route below makes a web-side feature nearly free to carry into the plugin, and
+porting first would mean building each one twice. Two consequences already
+visible:
+
+- **The engine-extraction prereq has not been met, and arcs 1.1 and 1.2 landed in
+  the page rather than in a DOM-free core.** That was the standing plan's advice
+  and it was not followed, so the extraction will have more to move. It was a
+  deliberate trade — features first — not an oversight.
+- **The state chunk question is now concrete.** Arc 1.2 means a patch can depend
+  on a dropped file, and the pre-port constraint below says decide *embed vs
+  path-reference* before freezing the format. Nothing here saves patches at all
+  yet, so the decision is still open and still unmade.
 The trio becomes plugins **after** arcs 1.1–1.3 land on web — those arcs are all
 engine/DSL-level, and the chosen route makes web-first features nearly free to
 carry over. Porting first would force double-implementation of every later
@@ -742,3 +781,70 @@ in how often they call `rnd()` diverge — deterministic, but order-dependent, a
 worth knowing before 1.2 adds more callers. Nothing was done about the drift
 `spread`/`lfo` grammar surface: the seed reaches them, but they are still slider
 values rather than expressions.
+
+**2026-09-06 — Claude Code.** Built **suite arc 1.2** — the dropped sound as a
+value source — in all three tools. The arc-order entry above says what shipped;
+this says how it was checked and what it cost.
+
+**Arc 1.1 paid for itself here.** Because expression scope now comes from the
+voice's bank rather than from a table fixed at page load, a dropped file needed
+**no parser change at all** — it registers into the same bank beside `rnd` and
+`noise`, and every column of every grammar could read it immediately. What did
+change is that `compileExpr` and `wcompile` take their key list from the bank, so
+a name can arrive after the page does. An empty slot reads 0, so a patch written
+against a file still parses once the file is cleared.
+
+**Verified by known answer wherever one existed**, which for this arc is
+unusually often:
+
+- A pure 440 Hz sine analyses to 1.000 at 440, 0.17 and 0.11 at the neighbouring
+  semitones, 0.0002 an octave below and 0.0001 above.
+- Driving `gain : file1(hz,t)` from that file and playing 110, 220 and 440 puts
+  the output peak at **441.4 Hz every time** — a different partial survives in
+  each case. Playing 330, where no harmonic lands in the band, drops output by a
+  factor of 600. That is the ratio-defined vocoder, measured rather than argued.
+- In moire, `y : op(1, 4*wave1(t))` against a 100 Hz sine file on a 1000 Hz
+  carrier gives sidebands at 1000 ± k·100 whose amplitudes follow **Bessel
+  functions of the index**: normalised to the carrier, 1.00 / 0.18 / 1.05 / 1.26 /
+  0.82 / 0.37 for k = 0..5 against |Jₖ(4)| of 1.00 / 0.17 / 0.92 / 1.08 / 0.71 /
+  0.33. The first sideband sits in J₁(4)'s near-null and is the weakest of the
+  set; the third pair is louder than the carrier. Both are required by theory.
+
+**One copy per context, not per note.** An analysis record is about 40 KB per
+second of sound and a voice is built per note, so the first implementation copied
+117 KB at every note-on for a 4 s file and would have copied about 7 MB for a file
+at the 180 s cap. It now crosses once per audio context per version of the file;
+a voice carries only the names — 11 bytes — and resolves against the worklet's
+module-scope `FILEBANK` when an expression actually calls one. **Resolving at call
+time rather than at construction** is what makes the order the node and the
+payload arrive in irrelevant, which is the part that would otherwise be a race.
+Note-on cost fell from 0.295 ms to 0.037 ms, at the noise floor of the 0.051 ms
+measured with no file at all. Spolium was checked first and does *not* solve this
+— its module-level cache is a fallback and it still ships the buffer per voice.
+
+**The cost that is worth knowing, and is not this arc's fault.** A vocoder patch
+is expensive live, and measuring showed why: a *constant* gain expression costs
+the same as the vocoder (8960 ms against 7788 ms for a 4 s render), and the
+pre-1.1 build costs 9867 ms for that same constant. **Per-sample dispatch of
+compiled gain expressions is a pre-existing cost that neither arc introduced**,
+and the file lookup on top of it is free. Headroom for a vocoder patch, as ratios
+of a 4 s render: 1 voice × 12 partials 0.24, 4 × 8 0.65, 4 × 12 1.11, 6 × 24 4.71.
+So a modest patch plays live and a large one does not. The fix would be
+control-rate gain evaluation with interpolation, which is a **change to the
+instrument, not a tidy-up** — it would turn audio-rate `rnd()` in a gain line from
+white noise into stepped noise — so it is recorded rather than done. Note that the
+VST port removes this cost by construction, since the C++ DSP has no JS dispatch.
+
+**New: `scripts/sync_signals.mjs`.** `../DEPENDENCIES.md` said "re-copy by hand";
+this copies the marked regions from aliquoto instead — the signal block into every
+copy including the ones inside worklet template literals, the analysis block only
+where one already exists — and `--check` reports drift without writing. It caught
+its own commit's drift, which is the argument for it.
+
+**Left undone.** One file slot, `file1`/`wave1`; the per-partial "each partial
+binds a different file" idea from `aliquoto/aliquoto.md` is not built, though the
+sources map takes more names without change. The waveform is kept only to 30 s
+where the analysis reaches 180 s. Nothing saves patches, so nothing yet carries a
+file reference — which is exactly the pre-port decision named in the VST section.
+Analysis is a fixed 2048/512 STFT; a file whose interesting motion is faster than
+about 12 ms is smeared.

@@ -411,3 +411,29 @@ RMS and sample values identically to nine decimals. Console clean.
 
 **Left undone**: the seed is not saved with a patch (nothing here saves patches);
 `rnd()` at audio rate consumes the voice stream per call, so call order matters.
+
+## 2026-09-06 — Claude Code — suite arc 1.2: the dropped sound, and the vocoder
+
+The "Dropped sound as f(t)" section below is built, in the modulator role it
+describes. `file1(t)` is the follower, `file1(hz,t)` the band energy, `wave1(t)`
+the sample value. The file never enters the audio path.
+
+The grammar sketch in that section asked to "decide at build" between `file1(t)`
+and `file1(hz,t)`; both shipped, distinguished by argument count, which turned out
+to need no decision. The **rate** question it raised — control-rate follower
+against audio-rate reads — was settled by measuring, and the answer is that it was
+the wrong question: the lookup is free at audio rate, and the cost that matters is
+the per-sample dispatch of *any* compiled gain expression, which predates both
+arcs. See `../suite.md` for the numbers.
+
+**The keyfollow vocoder works and is measurable.** With a file whose only energy is
+at 440 Hz and `gain : file1(hz,t)`, playing 110, 220 or 440 puts the output peak at
+441.4 Hz every time — a different partial survives in each case — and playing 330,
+where no harmonic lands in the band, drops output by a factor of 600.
+
+Analysis is main-thread only and lives between markers so `../scripts/sync_signals.mjs`
+can hold it in sync with the copies in cella and moire. Aliquoto is canonical for
+both marked regions.
+
+**Left undone**: one file slot rather than one per partial; the waveform is kept to
+30 s against the analysis's 180 s; a 2048/512 STFT smears motion faster than ~12 ms.

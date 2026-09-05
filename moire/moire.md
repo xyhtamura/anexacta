@@ -414,3 +414,31 @@ two-column grid. Console clean.
 
 **Left undone**: the seed is not saved with a patch; `idxMul` and the drift
 sliders are still slider values rather than grammar-visible signals.
+
+## 2026-09-06 — Claude Code — suite arc 1.2: the file as phase input
+
+The "Dropped sound as f(t)" section below is built. Two of its three sketched uses
+work directly, and the third — the one it called the strongest version — is now the
+distinctive moire feature of the arc:
+
+- **Follower on modulation depth**: `op(1, 8*file1(t)*sin(tau*100*t))` — the file's
+  loudness says how deep the gratings press into each other.
+- **Follower on ratio wander**: same value, used in an `r` position.
+- **Audio-rate file as phase input**: `op(1, k*wave1(t))` — PM cross-synthesis, the
+  file's waveform *is* the modulator.
+
+Verified by known answer, which PM makes possible. Against a file that is a pure
+100 Hz sine, `y : op(1, 4*wave1(t))` on a 1000 Hz carrier renders sidebands at
+1000 ± k·100 whose amplitudes follow Bessel functions of the index: normalised to
+the carrier, 1.00 / 0.18 / 1.05 / 1.26 / 0.82 / 0.37 for k = 0..5, against |Jₖ(4)|
+of 1.00 / 0.17 / 0.92 / 1.08 / 0.71 / 0.33. The first sideband sits in J₁(4)'s
+near-null and is the weakest of the set; the third pair is louder than the carrier.
+Console clean.
+
+The names enter through `PRELUDE` beside `rnd` and `noise`, so a compiled voice
+closes over them, and both joined `RESERVED` so a signal line cannot shadow them.
+The analysis half is hand-synced from aliquoto between markers — run
+`../scripts/sync_signals.mjs` rather than copying by hand.
+
+**Left undone**: the waveform is kept to 30 s; one file slot, so two operators
+cannot read different sounds.

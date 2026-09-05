@@ -461,3 +461,28 @@ across three runs. Console clean.
 
 **Left undone**: the seed is not saved with a patch; a dropped excitation file is
 still read at a fixed rate.
+
+## 2026-09-06 — Claude Code — suite arc 1.2, and a correction
+
+**Correction first.** The Excitation section's "Input port designed now, filled
+later" and the "Still deferred: external drive-buffer input" line were both stale
+and have been wrong for some time. Cella has had a working dropped-file
+excitation — decode, mono fold, per-partial offsets into the buffer, `fileAtTime`
+with wrapping, common and independent modes, in both the worklet and the
+fallback. Checked by driving it with `spolium/sample.wav`: the resonators ring at
+peak 5.58 / RMS 1.13 against 1.32 / 0.32 for noise. Arc 1.2 was therefore smaller
+here than the roadmap thought.
+
+**What this session added** is the file's *other* role, with no second control:
+the same buffer is analysed at load, so one dropped sound both rings the room and
+says how the room should be shaped. `file1(t)` is its loudness, `file1(hz,t)` its
+energy at `hz`, `wave1(t)` its samples. Clearing the excitation clears both.
+
+Verified: `q : 20+200*file1(t)` resolves as 10 t-dynamic modes and renders — the
+room's width breathing with the recording that is exciting it. `a : file1(hz,0.5)/n`
+sets each mode's amplitude from the file's energy at that mode's own hz, which is
+aliquoto's keyfollow idea moved from partial amplitudes to resonator amplitudes.
+Console clean.
+
+**Left undone**: the excitation is still read at a fixed rate; the analysis and the
+excitation share one slot, so two different sounds cannot ring and shape at once.
