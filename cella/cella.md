@@ -434,3 +434,30 @@ the shared engine remains hand-synced; extraction begins with suite arc 1.1.
 ---
 
 *spine: the room answers with its own lines, and stops answering slowly.*
+
+## 2026-09-05 — Claude Code — suite arc 1.1: the seam, and a repeatable drive
+
+Hand-synced from aliquoto, which is canonical; `../scripts/check_signals.mjs`
+asserts the copies stay byte-identical.
+
+The part that is cella's own: **the drive is noise, so seeding it is what makes a
+cella render repeat at all.** `white()` now draws from a per-voice stream rather
+than `Math.random()`, and the ensemble sub-offsets into a dropped excitation file
+are drawn from the same stream. The resonator bank was always deterministic given
+its excitation; the excitation was the only thing that was not.
+
+- `rnd()` is seeded, `noise(x)` is new — both in the r and Q columns. The a and p
+  columns still refuse `t`, unchanged.
+- `compileExpr` takes an optional voice bank; `mkDyn` passes it through in the
+  worklet and `FallbackCella` builds its own.
+- New UI: a **signal seed** field and a reseed button under drift.
+
+**Verified** in Edge against the root server: two offline renders of a three-note
+score at seed 1 differ by exactly 0 — the first time that has been true of cella —
+seed 2 differs by 1.96 peak, and two same-pitch notes inside one render differ by
+1.96. The drive's statistics are unchanged: eight seeds on the default patch give
+RMS 0.210–0.324, mean 0.262, against the pre-change build's 0.253/0.267/0.278
+across three runs. Console clean.
+
+**Left undone**: the seed is not saved with a patch; a dropped excitation file is
+still read at a fixed rate.

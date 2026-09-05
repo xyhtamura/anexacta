@@ -384,3 +384,33 @@ engine extraction begins with suite arc 1.1.
 ---
 
 *spine: two threads cross; the cloth remembers a pattern neither thread knows.*
+
+## 2026-09-05 — Claude Code — suite arc 1.1: the seam through PRELUDE
+
+Hand-synced from aliquoto, which is canonical; `../scripts/check_signals.mjs`
+asserts the copies stay byte-identical.
+
+Moire takes the seam differently from the other two because it compiles a whole
+voice into one function on the main thread and ships the source string to the
+worklet. So the sources enter through `PRELUDE`, and the generated function is
+built as `new Function("BANK", source)(bank)` — the voice closes over its own
+signal bank instead of reaching for module-level helpers. The constant-folding
+calls at compile time pass no bank and fall back to a fixed one, so folding stays
+deterministic.
+
+- `rnd()` is seeded; `noise(x)` is new. Both are in operator-equation scope.
+- `noise` and `BANK` joined `RESERVED`, so a named signal line cannot shadow them.
+- `state.rnd` and `state.lfo` — the per-op drift offsets — are drawn from the
+  voice stream in both `MoireVoice` and `FallbackVoice`.
+- New UI: a **signal seed** field and a reseed button under the drift controls.
+
+**Verified** in Edge against the root server: two offline renders of a three-note
+score at seed 1 differ by exactly 0; seed 2 differs by 0.25 peak; two same-pitch
+notes inside one render differ by 0.12. Against the pre-change build `c0f1eec`,
+the default patch with drift 0 reproduces peak, RMS and sample values identically
+to nine decimals. Layout checked by reading the DOM box of the new row and by
+screenshot: the seed row sits between drift and EDO without disturbing the
+two-column grid. Console clean.
+
+**Left undone**: the seed is not saved with a patch; `idxMul` and the drift
+sliders are still slider values rather than grammar-visible signals.

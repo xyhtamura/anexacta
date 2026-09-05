@@ -93,28 +93,40 @@ the same voice seam, surfaces, tuning, and export.
 
 ## Future directions
 
-### Shared, first pass shipped — `rnd()` (important for all three)
-A first-class **random function in the grammar** is now available in every tool's
+### Shared, shipped 2026-09-05 — `rnd()` and `noise(x)` on one seam
+A first-class **random function in the grammar** is available in every tool's
 expression scope. `rnd()` returns 0..1; `rnd(max)` and `rnd(lo,hi)` scale the draw,
 so jitter can live directly in `r(n)`, `a(n)`, `p(n)`, `q(n)`, `gain(t)`, or Moire
-operator equations. This first pass is intentionally simple and unseeded: it uses
-the browser's random source wherever the expression evaluates.
-
-Next refinement: make the primitive seedable/deterministic per voice and add a
-smoothable/band-limited companion, so a patch is reproducible but can still wander
-as *life* rather than hash.
+operator equations. It now draws from a **per-voice seeded stream** rather than the
+browser's random source, and **`noise(x)` → −1..1** joins it: a seeded 1D Perlin
+field, the smooth companion the first pass deferred. Both arrive through the
+signal-source registry described in arc 1.1 below.
 
 ### The 1.x arc order (set 2026-07-10; shipped trio = 1.0)
 
-1. **1.1 — signal-source seam + seeded/smooth rnd.** One registry: name → f(t),
-   evaluated per block. Seeded rnd, smooth/band-limited rnd, file follower, and
-   band-energy lookup all register into the same seam — build the plumbing once.
-   Patches become reproducible *before* they become file-dependent.
+1. **1.1 — signal-source seam + seeded/smooth rnd. Shipped 2026-09-05 in all
+   three.** One registry, `SIGNALS`: name → factory(seed) → the callable the
+   grammar sees. Its residents today are `rnd` and `noise`; the file follower and
+   the band-energy lookup are 1.2's guests and register the same way, which is
+   what "build the plumbing once" bought.
+
+   **Seeding.** A voice is seeded by patch seed, pitch, and **its position in the
+   performance**. Pitch alone would have made every repeat of a key a bit-identical
+   repeat, which flattens a trill — the wrong result for an instrument whose thesis
+   is that irregularity is native. The counter keeps repeats alive; resetting it at
+   the start of a render is what makes a whole score deterministic. Each tool has a
+   **signal seed** field and a reseed button.
+
+   **What reproducible means, exactly.** One seed renders one score to the same
+   audio every time: measured as a maximum sample difference of exactly 0 between
+   two renders in each of the three tools. It does not yet mean a saved patch
+   reproduces, because none of the three saves patches at all — when a patch format
+   arrives it has to carry the seed.
+
    In-house prior art for the smooth companion: **Roil**
    (`../xyhtamura.github.io/roil/`) — 1D Perlin drives pitch/cutoff/Q/amp, each
-   with independent depth + rate, control-rate ticked and smoothed. Plan: seeded
-   Perlin `noise(x)` → −1..1 in every tool's expression scope (detail in
-   `aliquoto/aliquoto.md` → "Roil-style noise()").
+   with independent depth + rate, control-rate ticked and smoothed. `noise(x)`
+   is that primitive (detail in `aliquoto/aliquoto.md` → "Roil-style noise()").
 2. **1.2 — file drop.** Aliquoto first (richest gain infra; keyfollow vocoder is
    the flagship claim); cella's drive port in the same arc (seam already designed —
    a dropped file is the first guest, no need to wait for a harvested member);
@@ -678,3 +690,55 @@ so, and the Hz seam is folded into the one-element-per-partial work in
 `physa/physa.md`, since per-element tuning is when it starts to matter. Unlike
 Horn of Plenty, which was struck on 2026-08-03 for the same lack, Physa is shaped
 to take the grammar; the slot is a promissory note rather than a mistake.
+
+**2026-09-05 — Claude Code.** Built **suite arc 1.1** — the signal-source seam
+with seeded `rnd()` and a new `noise(x)` — in all three of aliquoto, cella and
+moire. The arc-order entry above now records what shipped; this entry records
+how, and what it cost.
+
+The seam is one registry, `SIGNALS`, mapping a name to a factory that takes a
+seed and returns the callable the grammar sees. A voice builds its own bank from
+that registry, so every source in scope is seeded per voice, and 1.2's dropped
+file follower and band-energy lookup register beside `rnd` and `noise` instead of
+each growing a path of its own. The block of code is **byte-identical across all
+six sites** — main thread and worklet, in each of the three tools — and
+`scripts/check_signals.mjs` asserts that rather than asking anyone to remember
+it, which is the standing answer to the hand-sync drift that
+`../DEPENDENCIES.md` has warned about since 2026-07-03.
+
+Three things worth knowing:
+
+- **A voice is seeded by patch, pitch and position, not by pitch alone.** Pitch
+  alone was the first build and it was wrong: it made a repeated key a
+  bit-identical repeat, so a trill came out mechanical. That is the failure the
+  whole family exists to argue against. The position counter fixes it while a
+  reset at the start of a render keeps a score deterministic.
+- **Cella's drive is the noise**, so seeding `white()` is the only reason a cella
+  render can repeat at all; its resonator bank was always deterministic given an
+  excitation. This is the one tool where the arc changes what the instrument can
+  do rather than only how it is specified.
+- **Moire took the seam through `PRELUDE`**, not through an env table, because it
+  compiles a whole voice into one function and ships the source string to the
+  worklet. The generated function now takes a `BANK` argument and closes over its
+  own sources.
+
+**Verified**: `node scripts/check_signals.mjs` — 21 checks per tool plus the
+cross-tool identity, all passing; it evaluates each worklet as a template literal
+before parsing, so a pass means the shipping worklet passed, which is the lesson
+from Spolium's silent `wcompile` bug. In Edge against the root server, for each
+tool: two renders of one three-note score at seed 1 differ by exactly 0, a render
+at a different seed differs audibly (0.25–1.96 peak depending on the tool), and
+same-pitch notes inside one render differ from each other. Regression against the
+pre-change build `c0f1eec` on the default patch with drift at 0: aliquoto and
+moire reproduce peak, RMS and sample values identically to nine decimals. Cella
+cannot match by construction, so it was checked distributionally — eight seeds
+give RMS 0.210–0.324 against the old build's 0.253/0.267/0.278, so the drive's
+statistics are unchanged and only its repeatability is new.
+
+**Left undone.** The seed is not saved with a patch, because none of the three
+saves patches; a patch format has to carry it. `rnd()` inside an audio-rate
+expression consumes the voice stream per sample, so two patches that differ only
+in how often they call `rnd()` diverge — deterministic, but order-dependent, and
+worth knowing before 1.2 adds more callers. Nothing was done about the drift
+`spread`/`lfo` grammar surface: the seed reaches them, but they are still slider
+values rather than expressions.

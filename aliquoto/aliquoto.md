@@ -380,3 +380,34 @@ same-origin path `/tabota/tabota-resolve.js`; the vendored resolver remains
 unchanged. Updated suite and workspace-relative documentation links. Verified
 the new `/anexacta/aliquoto/` route and the resolver request through the shared
 root server. Undone: resolver freshness remains notify-only, as before.
+
+## 2026-09-05 — Claude Code — suite arc 1.1: the signal-source seam
+
+Aliquoto is the canonical copy of the seam; cella and moire were hand-synced from
+it, and `../scripts/check_signals.mjs` asserts the three stay byte-identical.
+
+- `rnd()` keeps its grammar surface exactly and changes underneath: a per-voice
+  mulberry32 stream instead of `Math.random()`.
+- `noise(x)` is new — seeded 1D Perlin, −1..1, zero at integer lattice points.
+  This is the "Roil-style `noise()`" section below, built. The patterns it
+  penciled work as written: `sum n=1..24 : n*(1+.01*noise(2*t+n*13)) : 1/n` gives
+  per-partial decorrelated pitch drift, and `gain : clip01(.19*(1+.87*noise(34.8*t)))`
+  gives amp noise.
+- `compileExpr(expr,vars,bank)` and `wcompile(expr,vars,bank)` take an optional
+  voice bank whose entries shadow `MENV`/`WENV`. All three synthesis paths — the
+  worklet, the live oscillator fallback, and the offline export — build one bank
+  per voice from the same seed, so an export matches what was played.
+- `wcompile`'s `**` substitution is now `split`/`join`. It was a regex inside a
+  template literal, the same shape as the bug that silenced Spolium; the worklet
+  source now contains no backslashes at all.
+- New UI: a **signal seed** number field and a reseed button under per-partial
+  drift.
+
+**Verified** in Edge against the root server: two offline renders of a three-note
+score at seed 1 differ by exactly 0; seed 2 differs by 0.49 peak; the three
+same-pitch notes inside one render differ from each other by 0.47–0.56. Against
+the pre-change build `c0f1eec`, the default patch with drift 0 reproduces peak,
+RMS and sample values identically to nine decimals. Console clean.
+
+**Left undone**: the seed is not saved with a patch (nothing here saves patches);
+`rnd()` at audio rate consumes the voice stream per call, so call order matters.
