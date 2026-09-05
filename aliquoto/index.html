@@ -330,7 +330,7 @@ body.iface-full{ overflow:hidden }
     <div class="help">
       <b>partial</b> <code>r : a : p°</code> or <code>r:a:p:A:D:S:R</code> · <b>sum</b> <code>sum n=1..N : r(n,t) : a(n) : p(n)</code> (+ optional <code>:A:D:S:R</code>) · <b>env</b> <code>env : f(r)</code> · <b>gain</b> <code>gain : f(t,r,hz,f0,a)</code> · <b>adsr</b> <code>adsr : A(r) : D(r) : S(r) : R(r)</code>.<br>
       in <b>a</b>/<b>p</b>/<b>env</b>/<b>adsr</b>/<b>where</b> you also have <code>r</code> (this partial's ratio), <code>hz</code> (=r·X), <code>f0</code> (=X). Use <code>t</code> in <b>r</b>/<b>env</b>/<b>gain</b> for time motion; <code>r(t)</code> must be positive at <code>t=0</code> (use <code>t+1</code>). gain/env time functions are clipped to <code>0..1</code> then multiplied by <code>a</code>. <b>conditionals</b> <code>iff(cond,a,b)</code> <code>odd(n)</code> <code>even(n)</code> <code>step</code> <code>between</code> <code>clamp</code> · compare <code>&lt; &gt; &lt;= &gt;= == != &amp;&amp; ||</code> (true=1).<br>
-      fns <code>prime fib rnd sin cos exp log sqrt pow abs mod clip01 adsr</code> · consts <code>pi e phi tau</code> · <code>^</code> power · <code>#</code> comment. Drag a partial = amp; <b>bake</b> writes it back as math.
+      fns <code>prime fib rnd noise sin cos exp log sqrt pow abs mod clip01 adsr</code> · consts <code>pi e phi tau</code> · <code>^</code> power · <code>#</code> comment. Drag a partial = amp; <b>bake</b> writes it back as math.
     </div>
 
     <div class="divider"></div>
@@ -352,6 +352,14 @@ body.iface-full{ overflow:hidden }
     <div class="sliderrow"><span>spread¢</span><input type="range" id="driftC" min="0" max="50" step=".5" value="0"><output id="driftCV"></output></div>
     <div class="sliderrow"><span>rate Hz</span><input type="range" id="driftR" min="0" max="8" step=".01" value="0"><output id="driftRV"></output></div>
     <div class="help">spread = static random detune per partial · rate&gt;0 = each partial slowly wanders. Dequantize the dead-steady tone.</div>
+
+    <div class="divider"></div>
+    <div class="seclabel">signal seed</div>
+    <div class="row" style="gap:8px">
+      <input type="number" id="seed" value="1" step="1" style="width:88px">
+      <button class="btn" id="reseed" style="font-size:11px;padding:6px 10px">reseed</button>
+    </div>
+    <div class="help">Seeds <code>rnd()</code>, <code>noise(x)</code> and the drift spread. Each voice also draws on its pitch and its position in the piece, so a repeated key is not a repeat, but one seed renders one score to the same audio every time. Change it to draw a different set.</div>
 
     <div class="divider"></div>
     <div class="seclabel">MIDI file</div>
@@ -462,10 +470,38 @@ const PRIMES=(()=>{const a=[],lim=4000,s=new Uint8Array(lim).fill(1);
 function prime(n){n=Math.max(1,Math.round(n));return PRIMES[n-1]||PRIMES[PRIMES.length-1];}
 function fib(n){n=Math.max(1,Math.round(n));let a=1,b=1;for(let i=2;i<n;i++)[a,b]=[b,a+b];return b;}
 function clip01(x){return Math.max(0,Math.min(1,isFinite(x)?x:0));}
-function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0;}return a+Math.random()*(b-a);}
+/* ---------- signal sources - suite arc 1.1 ----------
+   One registry: name -> factory(seed) -> the callable the grammar sees. Every
+   voice builds its own bank, so a note replays identically instead of drawing
+   fresh entropy each time, and later guests (a dropped file follower, band
+   energy at hz) register here rather than growing a second path. This text is
+   identical on the main thread and in the worklet: the two must agree or an
+   exported WAV drifts away from what was played. */
+function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
+function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
+function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
+  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
+const SIGNALS={
+  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
+  noise:seed=>x=>perlin1(x,seed)
+};
+const SIGKEYS=Object.keys(SIGNALS);
+function makeSignalBank(seed){ const bank={}; SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); }); return bank; }
+function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
+let PATCH_SEED=1, buildBank=makeSignalBank(PATCH_SEED), VOICE_N=0;
+function reseedBuild(){ buildBank=makeSignalBank(PATCH_SEED); }
+/* A voice is seeded by patch, pitch and its position in the performance, so a
+   repeated key is not a bit-identical repeat while a whole render still is:
+   reset the counter and the same score gives the same audio every time. */
+function nextVoiceSeed(hz){ return voiceSeed(PATCH_SEED,hz,VOICE_N++); }
+function resetVoiceCounter(){ VOICE_N=0; }
+function rnd(a,b){ return buildBank.rnd(a,b); }
+function noise(x){ return buildBank.noise(x); }
 function adsrShape(t,a,d,s,r){ t=Math.max(0,t); a=Math.max(.0001,a); d=Math.max(.0001,d); s=clip01(s);
   if(t<a)return t/a; if(t<a+d)return 1+(s-1)*((t-a)/d); return s; }
-const MENV={prime,fib,rnd,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
+const MENV={prime,fib,rnd,noise,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
   sqrt:Math.sqrt,pow:Math.pow,abs:Math.abs,floor:Math.floor,round:Math.round,sign:Math.sign,
   min:Math.min,max:Math.max,pi:Math.PI,e:Math.E,tau:2*Math.PI,phi:(1+Math.sqrt(5))/2,
   // conditionals / piecewise
@@ -474,13 +510,14 @@ const MENV={prime,fib,rnd,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,lo
   between:(x,lo,hi)=>(x>=lo&&x<=hi)?1:0, mod:(a,b)=>((a%b)+b)%b, clip01, adsrShape, adsr:adsrShape};
 const MKEYS=Object.keys(MENV);
 const hasT=expr=>/\bt\b/.test(expr||"");
-function compileExpr(expr,vars){
+function compileExpr(expr,vars,bank){
   expr=expr.replace(/\*\*/g,"^").replace(/\^/g,"**");
   if(/[^0-9a-zA-Z_.+\-*/%(),<>=!&|\s]/.test(expr)) throw new Error("bad char in: "+expr);
   const ids=expr.match(/[a-zA-Z_]\w*/g)||[];
   for(const id of ids) if(!vars.includes(id)&&!(id in MENV)) throw new Error("unknown name: "+id);
   const fn=new Function(...vars,...MKEYS,"return ("+expr+");");
-  return (...v)=>fn(...v,...MKEYS.map(k=>MENV[k]));
+  const vals=MKEYS.map(k=>(bank&&bank[k])||MENV[k]);   // a voice bank shadows the build-time one
+  return (...v)=>fn(...v,...vals);
 }
 const K=s=>compileExpr(s,[])();
 function ADSR(a,d,s,r){
@@ -637,25 +674,52 @@ function clip01(x){return Math.max(0,Math.min(1,isFinite(x)?x:0));}
 const WPRIMES=(()=>{const a=[],lim=4000,s=new Uint8Array(lim).fill(1);for(let i=2;i<lim;i++){if(s[i]){a.push(i);for(let j=i*i;j<lim;j+=i)s[j]=0;}}return a;})();
 function prime(n){n=Math.max(1,Math.round(n));return WPRIMES[n-1]||WPRIMES[WPRIMES.length-1];}
 function fib(n){n=Math.max(1,Math.round(n));let a=1,b=1;for(let i=2;i<n;i++){const c=a+b;a=b;b=c;}return b;}
-function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0;}return a+Math.random()*(b-a);}
+/* ---------- signal sources - suite arc 1.1 ----------
+   One registry: name -> factory(seed) -> the callable the grammar sees. Every
+   voice builds its own bank, so a note replays identically instead of drawing
+   fresh entropy each time, and later guests (a dropped file follower, band
+   energy at hz) register here rather than growing a second path. This text is
+   identical on the main thread and in the worklet: the two must agree or an
+   exported WAV drifts away from what was played. */
+function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
+function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
+function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
+  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
+const SIGNALS={
+  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
+  noise:seed=>x=>perlin1(x,seed)
+};
+const SIGKEYS=Object.keys(SIGNALS);
+function makeSignalBank(seed){ const bank={}; SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); }); return bank; }
+function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
+const WDEFAULT=makeSignalBank(1);
+function rnd(a,b){ return WDEFAULT.rnd(a,b); }
+function noise(x){ return WDEFAULT.noise(x); }
 function adsrShape(t,a,d,s,r){t=Math.max(0,t);a=Math.max(.0001,a);d=Math.max(.0001,d);s=clip01(s);if(t<a)return t/a;if(t<a+d)return 1+(s-1)*((t-a)/d);return s;}
-const WENV={prime,fib,rnd,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
+const WENV={prime,fib,rnd,noise,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
   sqrt:Math.sqrt,pow:Math.pow,abs:Math.abs,floor:Math.floor,round:Math.round,sign:Math.sign,
   min:Math.min,max:Math.max,pi:Math.PI,e:Math.E,tau:2*Math.PI,phi:(1+Math.sqrt(5))/2,
   iff:(c,a,b)=>c?a:b, odd:n=>(Math.round(n)%2!==0)?1:0, even:n=>(Math.round(n)%2===0)?1:0,
   not:x=>x?0:1, clamp:(x,lo,hi)=>Math.min(hi,Math.max(lo,x)), step:(edge,x)=>x>=edge?1:0,
   between:(x,lo,hi)=>(x>=lo&&x<=hi)?1:0, mod:(a,b)=>((a%b)+b)%b, clip01, adsrShape, adsr:adsrShape};
 const WKEYS=Object.keys(WENV), WVALS=WKEYS.map(k=>WENV[k]);
-function wcompile(expr,vars){ expr=String(expr).replace(/\\*\\*/g,"^").replace(/\\^/g,"**"); return new Function(...vars,...WKEYS,"return ("+expr+");"); }
-function dynCall(d,args){ try{ const v=d.fn(...args,...WVALS); return isFinite(v)?v:null; }catch(e){ return null; } }
+function wcompile(expr,vars,bank){ expr=String(expr).split("**").join("^").split("^").join("**");
+  const fn=new Function(...vars,...WKEYS,"return ("+expr+");");
+  const vals=bank?WKEYS.map(k=>bank[k]||WENV[k]):WVALS;
+  return (...v)=>fn(...v,...vals); }
+function dynCall(d,args){ try{ const v=d.fn(...args); return isFinite(v)?v:null; }catch(e){ return null; } }
 class Additive extends AudioWorkletProcessor{
   static get parameterDescriptors(){ return [{name:'f0',defaultValue:440,minValue:0,maxValue:24000,automationRate:'a-rate'}]; }
   constructor(o){super();const p=o.processorOptions;
     this.P=p.parts;this.dc=p.driftCents||0;this.dr=p.driftRate||0;this.t0=p.startAt||currentTime;
-    this.ph=this.P.map(x=>x.phase||0);this.rnd=this.P.map(()=>Math.random()*2-1);
-    this.lfo=this.P.map(()=>Math.random()*6.28318);this.relAt=null;this.relLevel=this.P.map(()=>0);this.killAt=Infinity;
-    this.expr=this.P.map(p=>({r:p.dyn&&p.dyn.r?{...p.dyn.r,fn:wcompile(p.dyn.r.expr,p.dyn.r.vars)}:null,
-      gains:(p.gains||[]).map(expr=>({expr,fn:wcompile(expr,["t","r","hz","f0","a"])}))}));
+    this.bank=makeSignalBank(p.seed==null?1:p.seed);   // one bank per voice: the note replays as itself
+    const spread=mulberry32(hash32((p.seed==null?1:p.seed)+0x5F356495));
+    this.ph=this.P.map(x=>x.phase||0);this.rnd=this.P.map(()=>spread()*2-1);
+    this.lfo=this.P.map(()=>spread()*6.28318);this.relAt=null;this.relLevel=this.P.map(()=>0);this.killAt=Infinity;
+    this.expr=this.P.map(p=>({r:p.dyn&&p.dyn.r?{...p.dyn.r,fn:wcompile(p.dyn.r.expr,p.dyn.r.vars,this.bank)}:null,
+      gains:(p.gains||[]).map(expr=>({expr,fn:wcompile(expr,["t","r","hz","f0","a"],this.bank)}))}));
     this.norm=this.P.reduce((s,x)=>s+Math.abs(x.amp),0)||1;this.dead=false;
     if(p.relAt!=null){
       this.relLevel=this.P.map((_,i)=>this.ads(i,p.relAt));
@@ -743,10 +807,10 @@ function schedulePartGain(g,base,e,at,dur){
   g.gain.linearRampToValueAtTime(base*S,at+A+D);
   if(rel!=null){ g.gain.setValueAtTime(base*adsLevel(e,dur),rel); g.gain.linearRampToValueAtTime(0,rel+e.r); }
 }
-function compileDynRatio(d){ return d?{...d,fn:compileExpr(d.expr,d.vars)}:null; }
+function compileDynRatio(d,bank){ return d?{...d,fn:compileExpr(d.expr,d.vars,bank)}:null; }
 function dynRatioAt(d,age,fallback){ if(!d)return fallback;
   try{ const v=d.fn(...(d.vals||[]),age); return (isFinite(v)&&v>=0)?v:fallback; }catch(e){ return fallback; } }
-function compileGainFns(gains){ return (gains||[]).map(expr=>({expr,fn:compileExpr(expr,["t","r","hz","f0","a"])})); }
+function compileGainFns(gains,bank){ return (gains||[]).map(expr=>({expr,fn:compileExpr(expr,["t","r","hz","f0","a"],bank)})); }
 function dynGainAt(fns,age,ratio,hz,f0,a){ let g=1;
   for(const fn of fns){ try{ const v=fn.fn(age,ratio,hz,f0,a); if(isFinite(v))g*=clip01(v); }catch(e){} }
   return g;
@@ -767,15 +831,16 @@ function realizeNote(note,whenSec){
   const parts=audioParts(); note._parts=parts;
   if(workletReady){
     const node=new AudioWorkletNode(AC,"additive",{numberOfInputs:0,numberOfOutputs:1,
-      outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:now}});
+      outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:now,seed:nextVoiceSeed(note.pts[0].hz)}});
     const f0=node.parameters.get("f0"); note._param=f0;                 // pitch is an automatable param
     f0.cancelScheduledValues(now); f0.setValueAtTime(Math.max(1e-4,note.pts[0].hz),now);
     for(let i=1;i<note.pts.length;i++){ const pt=note.pts[i]; rampParam(f0,pt.hz,now+pt.t,pt.curve); }
     node.connect(env); note._node=node;
   } else {
     const norm=parts.reduce((s,p)=>s+Math.abs(p.amp),0)||1; note._oscs=[]; const f0=note.pts[0].hz; note._baseHz=f0; note._dc=dc; note._dr=dr;
-    for(const p of parts){ const dynR=compileDynRatio(p.dyn&&p.dyn.r), ratio0=dynRatioAt(dynR,0,p.ratio), f=f0*ratio0; if(f<=0||f>AC.sampleRate/2)continue;
-      const rnd=Math.random()*2-1,lfo=Math.random()*Math.PI*2,gainFns=compileGainFns(p.gains),baseGain=p.amp/norm;
+    const vseed=nextVoiceSeed(f0), bank=makeSignalBank(vseed), spread=mulberry32(hash32(vseed+0x5F356495));
+    for(const p of parts){ const dynR=compileDynRatio(p.dyn&&p.dyn.r,bank), ratio0=dynRatioAt(dynR,0,p.ratio), f=f0*ratio0; if(f<=0||f>AC.sampleRate/2)continue;
+      const rnd=spread()*2-1,lfo=spread()*Math.PI*2,gainFns=compileGainFns(p.gains,bank),baseGain=p.amp/norm;
       const o=AC.createOscillator(); o.type="sine"; o.frequency.value=driftedHz(f0,ratio0,dc,dr,rnd,lfo,now);
       const g=AC.createGain(); if(gainFns.length) g.gain.setValueAtTime(baseGain*dynGainAt(gainFns,0,ratio0,f,f0,Math.abs(p.amp)),now); else schedulePartGain(g,baseGain,p.adsr,now);
       o.connect(g); g.connect(env); o.start(now); note._oscs.push({o,g,ratio:p.ratio,dynR,gainFns,baseGain,amp:p.amp,adsr:p.adsr,rnd,lfo}); }
@@ -869,14 +934,16 @@ function scheduleVoice(note,at,dur,opts){
   const dc=formulaOwnsDrift()?0:+el("driftC").value, dr=formulaOwnsDrift()?0:+el("driftR").value;
   const parts=opts.parts||audioParts(), maxR=maxPartRelease(parts);
   const rec={node:null,oscs:null,env,baseHz:note.pts[0].hz,dc,dr,driftTimer:null};
+  const vseed=nextVoiceSeed(note.pts[0].hz);
   if(opts.forceWorklet || (ctx===AC && workletReady)){
-    const node=new AudioWorkletNode(ctx,"additive",{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:at,relAt:at+dur}});
+    const node=new AudioWorkletNode(ctx,"additive",{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:at,relAt:at+dur,seed:vseed}});
     const f0=node.parameters.get("f0"); f0.setValueAtTime(Math.max(1e-4,note.pts[0].hz),at);
     for(let i=1;i<note.pts.length;i++) rampParam(f0,note.pts[i].hz,at+note.pts[i].t,note.pts[i].curve);
     node.connect(env); rec.node=node;
   } else { rec.oscs=[]; const norm=parts.reduce((s,p)=>s+Math.abs(p.amp),0)||1; const f0=note.pts[0].hz;
-    for(const p of parts){ const dynR=compileDynRatio(p.dyn&&p.dyn.r), ratio0=dynRatioAt(dynR,0,p.ratio), f=f0*ratio0; if(f<=0||f>ctx.sampleRate/2)continue;
-      const rnd=Math.random()*2-1,lfo=Math.random()*Math.PI*2,gainFns=compileGainFns(p.gains),baseGain=p.amp/norm;
+    const bank=makeSignalBank(vseed), spread=mulberry32(hash32(vseed+0x5F356495));
+    for(const p of parts){ const dynR=compileDynRatio(p.dyn&&p.dyn.r,bank), ratio0=dynRatioAt(dynR,0,p.ratio), f=f0*ratio0; if(f<=0||f>ctx.sampleRate/2)continue;
+      const rnd=spread()*2-1,lfo=spread()*Math.PI*2,gainFns=compileGainFns(p.gains,bank),baseGain=p.amp/norm;
       const o=ctx.createOscillator(); o.type="sine"; o.frequency.value=driftedHz(f0,ratio0,dc,dr,rnd,lfo,at); const g=ctx.createGain();
       if(gainFns.length) g.gain.setValueAtTime(baseGain*dynGainAt(gainFns,0,ratio0,f,f0,Math.abs(p.amp)),at); else schedulePartGain(g,baseGain,p.adsr,at,dur);
       o.connect(g); g.connect(env); o.start(at); rec.oscs.push({o,g,ratio:p.ratio,dynR,gainFns,baseGain,amp:p.amp,adsr:p.adsr,rnd,lfo}); }
@@ -888,6 +955,7 @@ function scheduleVoice(note,at,dur,opts){
   return rec;
 }
 function playScore(){ if(!SCORE||!SCORE.notes.length) return;
+  resetVoiceCounter();
   initAudio().then(()=>{ if(!AC)return; if(scorePlaying){ stopScore(); return; }
     if(typeof midiPlaying==="function" && midiPlaying()) stopMidi();
     scorePlaying=true; el("tabPlay").textContent="■ stop";
@@ -1576,6 +1644,7 @@ function playMidi(){ if(!MIDI_NOTES||!MIDI_NOTES.length)return;
   }).catch(()=>{});
 }
 async function exportMidiWav(){ if(!MIDI_NOTES||!MIDI_NOTES.length)return;
+  resetVoiceCounter();   // the same score renders to the same audio every time
   const btn=el("midiExport"), old=btn.textContent; btn.disabled=true; btn.textContent="rendering...";
   try{
     if(!PARTIALS.length) throw new Error("no spectrum");
@@ -1676,6 +1745,9 @@ function init(){
   slider("atk","atkV",v=>v.toFixed(2)); slider("dec","decV",v=>v.toFixed(2));
   slider("sus","susV",v=>v.toFixed(2)); slider("rel","relV",v=>v.toFixed(2));
   slider("driftC","driftCV",v=>v.toFixed(1)); slider("driftR","driftRV",v=>v.toFixed(2));
+  const applySeed=()=>{ PATCH_SEED=(parseInt(el("seed").value,10)||0)>>>0; reseedBuild(); applyGrammar(); };
+  el("seed").addEventListener("change",applySeed);
+  el("reseed").onclick=()=>{ el("seed").value=String((Math.random()*1e6)|0); applySeed(); };
   buildKeyboard(); initMIDI();
   buildInterfaceSizeChips(); buildSurfChips(); setSurface("piano");
   el("edo").addEventListener("input",()=>{ TUNING.edo=Math.max(1,Math.min(96,+el("edo").value||12)); drawSurface(); });
