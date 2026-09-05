@@ -491,7 +491,8 @@ textarea:focus{border-color:var(--iris-green);box-shadow:inset 0 2px 14px #000a,
           <div><b>name : expr</b> &mdash; a named signal; <b>y :</b> (or the last line) is the output</div>
           <div>refs between lines = the modulation graph; a self / backward ref = 1-sample feedback</div>
           <div><b>sum n=1..N : expr</b> [<b>where</b> pred] &mdash; an operator family indexed by n</div>
-          <div>scope: <b>t f0 n</b> &middot; <b>pi e phi tau</b> &middot; <b>prime fib rnd iff odd even step mod</b> &hellip;</div>
+          <div>scope: <b>t f0 n</b> &middot; <b>pi e phi tau</b> &middot; <b>prime fib rnd noise iff odd even step mod</b> &hellip;</div>
+          <div><b>rnd()</b> draws, <b>noise(x)</b> reads a smooth field &mdash; both seeded per voice, so a render repeats</div>
           <div><b>I&times;</b> scales every phase depth &mdash; <b>I&times;0</b> = pure carriers (the additive limit)</div>
         </div>
       </div>
@@ -544,6 +545,16 @@ textarea:focus{border-color:var(--iris-green);box-shadow:inset 0 2px 14px #000a,
             <label for="driftRate">drift Hz</label>
             <input id="driftRate" type="range" min="0.01" max="8" step="0.01" value="0.23">
             <output id="driftRateOut">0.23</output>
+          </div>
+        </div>
+        <div class="twocol">
+          <div class="control">
+            <label for="seed">signal seed</label>
+            <input id="seed" type="number" step="1" value="1">
+          </div>
+          <div class="control">
+            <label for="reseed">&nbsp;</label>
+            <button id="reseed" type="button">reseed</button>
           </div>
         </div>
         <div class="twocol">
@@ -715,17 +726,66 @@ function between(x,a,b){return x>=Math.min(a,b)&&x<=Math.max(a,b)?1:0}
 function clamp(x,a,b){return Math.min(Math.max(x,a),b)}
 function clip01(x){return clamp(x,0,1)}
 function mod(a,b){return ((a%b)+b)%b}
-function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0}return a+Math.random()*(b-a)}
+/* ---------- signal sources - suite arc 1.1 ----------
+   One registry: name -> factory(seed) -> the callable the grammar sees. Every
+   voice builds its own bank, so a note replays identically instead of drawing
+   fresh entropy each time, and later guests (a dropped file follower, band
+   energy at hz) register here rather than growing a second path. This text is
+   identical on the main thread and in the worklet: the two must agree or an
+   exported WAV drifts away from what was played. */
+function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
+function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
+function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
+  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
+const SIGNALS={
+  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
+  noise:seed=>x=>perlin1(x,seed)
+};
+const SIGKEYS=Object.keys(SIGNALS);
+function makeSignalBank(seed){ const bank={}; SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); }); return bank; }
+function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
+let PATCH_SEED=1, buildBank=makeSignalBank(PATCH_SEED), VOICE_N=0;
+function reseedBuild(){ buildBank=makeSignalBank(PATCH_SEED); }
+/* A voice is seeded by patch, pitch and its position in the performance, so a
+   repeated key is not a bit-identical repeat while a whole render still is:
+   reset the counter and the same score gives the same audio every time. */
+function nextVoiceSeed(hz){ return voiceSeed(PATCH_SEED,hz,VOICE_N++); }
+function resetVoiceCounter(){ VOICE_N=0; }
+function rnd(a,b){ return buildBank.rnd(a,b) }
+function noise(x){ return buildBank.noise(x) }
 
 const RESERVED=new Set(("t f0 op OP sum where state S idxMul driftDepth driftRate pi e phi tau inf NaN Infinity " +
   "sin cos tan asin acos atan atan2 exp log log10 sqrt pow abs min max floor ceil round random rnd " +
-  "iff odd even step between clamp clip01 mod prime fib let const var return if else for while function class new").split(/\s+/));
+  "iff odd even step between clamp clip01 mod prime fib noise BANK let const var return if else for while function class new").split(/\s+/));
 const PRELUDE=`
 const tau=Math.PI*2, pi=Math.PI, e=Math.E, phi=(1+Math.sqrt(5))/2, inf=Infinity;
 const sin=Math.sin, cos=Math.cos, tan=Math.tan, asin=Math.asin, acos=Math.acos;
 const atan=Math.atan, atan2=Math.atan2, exp=Math.exp, log=Math.log, log10=Math.log10 || ((x)=>Math.log(x)/Math.LN10);
 const sqrt=Math.sqrt, pow=Math.pow, abs=Math.abs, min=Math.min, max=Math.max, floor=Math.floor, ceil=Math.ceil, round=Math.round;
-function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0}return a+Math.random()*(b-a)}
+/* ---------- signal sources - suite arc 1.1 ----------
+   One registry: name -> factory(seed) -> the callable the grammar sees. Every
+   voice builds its own bank, so a note replays identically instead of drawing
+   fresh entropy each time, and later guests (a dropped file follower, band
+   energy at hz) register here rather than growing a second path. This text is
+   identical on the main thread and in the worklet: the two must agree or an
+   exported WAV drifts away from what was played. */
+function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
+function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
+function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
+  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
+const SIGNALS={
+  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
+  noise:seed=>x=>perlin1(x,seed)
+};
+const SIGKEYS=Object.keys(SIGNALS);
+function makeSignalBank(seed){ const bank={}; SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); }); return bank; }
+function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
+const __BANK=(typeof BANK!=="undefined"&&BANK)?BANK:makeSignalBank(1);
+const rnd=__BANK.rnd, noise=__BANK.noise;
 function iff(c,a,b){return c?a:b}
 function odd(n){return Math.abs(Math.round(n))%2?1:0}
 function even(n){return odd(n)?0:1}
@@ -894,7 +954,7 @@ function compileProgram(text){
   // Carrier phase integrates a per-op accumulator (PH[i]) instead of sin(2π r f0 t):
   // when r or f0 varies (drift, glide, r(t)) a stateless t-multiply accrues phase
   // error linear in note age; integrating dphi = 2π r f0 dt keeps it exact.
-  const source=`"use strict";
+  const source=`"use strict";  // compiled with BANK = this voice's signal bank
 ${PRELUDE}
 return function(t,f0,state,idxMul,driftDepth,driftRate,dt){
   const S=state.s, PH=state.ph;
@@ -920,6 +980,26 @@ return function(t,f0,state,idxMul,driftDepth,driftRate,dt){
 }
 
 const WORKLET_SRC=`
+/* ---------- signal sources - suite arc 1.1 ----------
+   One registry: name -> factory(seed) -> the callable the grammar sees. Every
+   voice builds its own bank, so a note replays identically instead of drawing
+   fresh entropy each time, and later guests (a dropped file follower, band
+   energy at hz) register here rather than growing a second path. This text is
+   identical on the main thread and in the worklet: the two must agree or an
+   exported WAV drifts away from what was played. */
+function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
+function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
+function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
+  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
+const SIGNALS={
+  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
+  noise:seed=>x=>perlin1(x,seed)
+};
+const SIGKEYS=Object.keys(SIGNALS);
+function makeSignalBank(seed){ const bank={}; SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); }); return bank; }
+function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
 class MoireVoice extends AudioWorkletProcessor{
   constructor(options){
     super();
@@ -937,10 +1017,12 @@ class MoireVoice extends AudioWorkletProcessor{
     };
   }
   configure(o){
-    this.fn=o.source?(new Function(o.source))():null;
+    this.bank=makeSignalBank(o.seed==null?1:o.seed);   // one bank per voice
+    this.fn=o.source?(new Function("BANK",o.source))(this.bank):null;
+    const spread=mulberry32(hash32((o.seed==null?1:o.seed)+0x5F356495));
     const lc=Math.max(1,o.lineCount||1), oc=Math.max(1,o.opCount||1);
     this.state={s:new Float64Array(lc),rnd:new Float64Array(oc),lfo:new Float64Array(oc),ph:new Float64Array(oc)};
-    for(let i=0;i<oc;i++){this.state.rnd[i]=Math.random()*2-1;this.state.lfo[i]=Math.random()*Math.PI*2}
+    for(let i=0;i<oc;i++){this.state.rnd[i]=spread()*2-1;this.state.lfo[i]=spread()*Math.PI*2}
     this.f0=+o.f0||220; this.vel=+o.vel||.8; this.gain=+o.gain||.7;
     this.idxMul=+o.idxMul; this.driftDepth=+o.driftDepth||0; this.driftRate=+o.driftRate||.2;
     this.adsr=o.adsr||{a:.01,d:.5,s:.4,r:1};
@@ -989,10 +1071,12 @@ registerProcessor("moire-voice",MoireVoice);
 class FallbackVoice{
   constructor(ctx,o){
     this.ctx=ctx; this.node=ctx.createScriptProcessor(512,0,2);
-    this.fn=(new Function(o.source))();
+    this.bank=makeSignalBank(o.seed==null?1:o.seed);   // one bank per voice
+    this.fn=(new Function("BANK",o.source))(this.bank);
+    const spread=mulberry32(hash32((o.seed==null?1:o.seed)+0x5F356495));
     const lc=Math.max(1,o.lineCount||1), oc=Math.max(1,o.opCount||1);
     this.state={s:new Float64Array(lc),rnd:new Float64Array(oc),lfo:new Float64Array(oc),ph:new Float64Array(oc)};
-    for(let i=0;i<oc;i++){this.state.rnd[i]=Math.random()*2-1;this.state.lfo[i]=Math.random()*TAU}
+    for(let i=0;i<oc;i++){this.state.rnd[i]=spread()*2-1;this.state.lfo[i]=spread()*TAU}
     this.f0=o.f0||220; this.vel=o.vel||.8; this.gain=o.gain||.7;
     this.idxMul=o.idxMul; this.driftDepth=o.driftDepth||0; this.driftRate=o.driftRate||.2;
     this.adsr=o.adsr||{a:.01,d:.5,s:.4,r:1};
@@ -1057,6 +1141,9 @@ function updateControlLabels(){
   for(const v of voices.values()) v.post({type:"params",...p});
 }
 ["ix","gain","driftDepth","driftRate","atk","dec","sus","rel"].forEach(id=>$(id).addEventListener("input",updateControlLabels));
+const applySeed=()=>{ PATCH_SEED=(parseInt($("seed").value,10)||0)>>>0; reseedBuild(); applyGrammar(); };
+$("seed").addEventListener("change",applySeed);
+$("reseed").addEventListener("click",()=>{ $("seed").value=String((Math.random()*1e6)|0); applySeed(); });
 
 function applyGrammar(){
   try{
@@ -1190,7 +1277,7 @@ function updateAudioLabels(){
 function voiceSpec(hz,vel){
   if(!CURRENT) applyGrammar();
   const p=currentParams();
-  return {source:CURRENT.source,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:hz,vel:vel||.8,...p};
+  return {source:CURRENT.source,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:hz,vel:vel||.8,seed:nextVoiceSeed(hz),...p};
 }
 function startNote(id,hz,vel=.85){
   if(!CURRENT && !applyGrammar()) return null;
@@ -1313,6 +1400,7 @@ async function renderMidiOffline(){
   const Offline=window.OfflineAudioContext||window.webkitOfflineAudioContext;
   if(!Offline) throw new Error("no OfflineAudioContext");
   const p=currentParams();
+  resetVoiceCounter();   // the same score renders to the same audio every time
   const sr=44100, tail=(p.adsr.r||1)+2, len=Math.max(1,Math.ceil((MIDI_DUR+tail)*sr));
   const OC=new Offline(2,len,sr);
   const url=URL.createObjectURL(new Blob([WORKLET_SRC],{type:"application/javascript"}));
@@ -1320,7 +1408,7 @@ async function renderMidiOffline(){
   const mst=OC.createGain(); mst.gain.value=1; mst.connect(OC.destination);
   for(let k=0;k<MIDI_NOTES.length;k++){
     const nt=MIDI_NOTES[k];
-    const spec={source:CURRENT.source,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:midiToHz(nt.n),vel:nt.vel,startAt:nt.t,relAt:nt.t+nt.dur,...p};
+    const spec={source:CURRENT.source,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:midiToHz(nt.n),vel:nt.vel,startAt:nt.t,relAt:nt.t+nt.dur,seed:nextVoiceSeed(midiToHz(nt.n)),...p};
     const node=new AudioWorkletNode(OC,"moire-voice",{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2],processorOptions:spec});
     node.connect(mst);
   }
