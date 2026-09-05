@@ -320,7 +320,7 @@ canvas{ display:block; width:100%; height:100% }
     </div>
     <div class="help">
       <b>partial</b> <code>r : a : p° : Q</code> · <b>sum</b> <code>sum n=1..N : r(n) : a(n) : p(n) : Q(n)</code> · <b>env</b> <code>env : f(r)</code> (scales amp) · <b>q</b> <code>q : f(r)</code> (global width law).<br>
-      <b>Q</b> = quality: high Q = narrow line, rings long; low Q = broad, colored hiss. <code>Q=*</code> (or <code>inf</code>) → a <b>pure sine</b> — this is the chimera notation, some lines ring, some are struck. In scope: <code>r</code> · <code>hz</code>(=r·X) · <code>f0</code>(=X) · index <code>n,k</code>. Fns <code>prime fib rnd sin cos exp log sqrt pow abs mod iff odd even</code> · consts <code>pi e phi tau</code>.<br>
+      <b>Q</b> = quality: high Q = narrow line, rings long; low Q = broad, colored hiss. <code>Q=*</code> (or <code>inf</code>) → a <b>pure sine</b> — this is the chimera notation, some lines ring, some are struck. In scope: <code>r</code> · <code>hz</code>(=r·X) · <code>f0</code>(=X) · index <code>n,k</code>. Fns <code>prime fib rnd noise sin cos exp log sqrt pow abs mod iff odd even</code> · consts <code>pi e phi tau</code>.<br>
       <b>time</b> — put <code>t</code> (seconds since note-on) in the <b>ratio</b> for a <b>swept resonance</b> (<code>1+0.5*sin(tau*t)</code>) or in <b>Q</b> for a <b>breathing width</b> (<code>20*(1+4*t)</code> — starts broad, narrows). t-modes keep updating through the ring-out.
     </div>
 
@@ -353,6 +353,14 @@ canvas{ display:block; width:100%; height:100% }
     <div class="sliderrow"><span>depth¢</span><input type="range" id="driftDepth" min="0" max="50" step=".5" value="0"><output id="driftDepthV"></output></div>
     <div class="sliderrow"><span>rate Hz</span><input type="range" id="driftRate" min="0" max="8" step=".01" value="0"><output id="driftRateV"></output></div>
     <div class="help">per-mode random detune (static offset) + slow sine wander at <b>rate</b>. Unlike <b>ensemble spread</b> (which smears one line into a band), drift shifts each whole line coherently — the chamber breathing, strings never quite in tune. Dequantize the dead-steady tone. Applied when a note starts.</div>
+
+    <div class="divider"></div>
+    <div class="seclabel">signal seed <span class="sub">— which draw of the noise you get</span></div>
+    <div class="row" style="gap:8px">
+      <input type="number" id="seed" value="1" step="1" style="width:88px">
+      <button class="btn" id="reseed">reseed</button>
+    </div>
+    <div class="help">Seeds the drive noise, <code>rnd()</code>, <code>noise(x)</code> and the drift offsets. Each voice also draws on its pitch and its position in the piece, so a repeated key is not a repeat, but one seed rings the room the same way every time. Change it to draw a different set.</div>
 
     <div class="divider"></div>
     <div class="seclabel">envelope <span class="sub">— ADSR, gates the drive</span></div>
@@ -442,21 +450,50 @@ const PRIMES=(()=>{const a=[],lim=4000,s=new Uint8Array(lim).fill(1);
 function prime(n){n=Math.max(1,Math.round(n));return PRIMES[n-1]||PRIMES[PRIMES.length-1];}
 function fib(n){n=Math.max(1,Math.round(n));let a=1,b=1;for(let i=2;i<n;i++)[a,b]=[b,a+b];return b;}
 function clip01(x){return Math.max(0,Math.min(1,isFinite(x)?x:0));}
-function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0;}return a+Math.random()*(b-a);}
-const MENV={prime,fib,rnd,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
+/* ---------- signal sources - suite arc 1.1 ----------
+   One registry: name -> factory(seed) -> the callable the grammar sees. Every
+   voice builds its own bank, so a note replays identically instead of drawing
+   fresh entropy each time, and later guests (a dropped file follower, band
+   energy at hz) register here rather than growing a second path. This text is
+   identical on the main thread and in the worklet: the two must agree or an
+   exported WAV drifts away from what was played. */
+function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
+function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
+function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
+  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
+const SIGNALS={
+  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
+  noise:seed=>x=>perlin1(x,seed)
+};
+const SIGKEYS=Object.keys(SIGNALS);
+function makeSignalBank(seed){ const bank={}; SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); }); return bank; }
+function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
+let PATCH_SEED=1, buildBank=makeSignalBank(PATCH_SEED), VOICE_N=0;
+function reseedBuild(){ buildBank=makeSignalBank(PATCH_SEED); }
+/* A voice is seeded by patch, pitch and its position in the performance, so a
+   repeated key is not a bit-identical repeat while a whole render still is:
+   reset the counter and the same score gives the same audio every time. */
+function nextVoiceSeed(hz){ return voiceSeed(PATCH_SEED,hz,VOICE_N++); }
+function resetVoiceCounter(){ VOICE_N=0; }
+function rnd(a,b){ return buildBank.rnd(a,b); }
+function noise(x){ return buildBank.noise(x); }
+const MENV={prime,fib,rnd,noise,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
   sqrt:Math.sqrt,pow:Math.pow,abs:Math.abs,floor:Math.floor,round:Math.round,sign:Math.sign,
   min:Math.min,max:Math.max,pi:Math.PI,e:Math.E,tau:2*Math.PI,phi:(1+Math.sqrt(5))/2,
   iff:(c,a,b)=>c?a:b, odd:n=>(Math.round(n)%2!==0)?1:0, even:n=>(Math.round(n)%2===0)?1:0,
   not:x=>x?0:1, clamp:(x,lo,hi)=>Math.min(hi,Math.max(lo,x)), step:(edge,x)=>x>=edge?1:0,
   between:(x,lo,hi)=>(x>=lo&&x<=hi)?1:0, mod:(a,b)=>((a%b)+b)%b, clip01};
 const MKEYS=Object.keys(MENV);
-function compileExpr(expr,vars){
+function compileExpr(expr,vars,bank){
   expr=String(expr).replace(/\*\*/g,"^").replace(/\^/g,"**");
   if(/[^0-9a-zA-Z_.+\-*/%(),<>=!&|\s]/.test(expr)) throw new Error("bad char in: "+expr);
   const ids=expr.match(/[a-zA-Z_]\w*/g)||[];
   for(const id of ids) if(!vars.includes(id)&&!(id in MENV)) throw new Error("unknown name: "+id);
   const fn=new Function(...vars,...MKEYS,"return ("+expr+");");
-  return (...v)=>fn(...v,...MKEYS.map(k=>MENV[k]));
+  const vals=MKEYS.map(k=>(bank&&bank[k])||MENV[k]);   // a voice bank shadows the build-time one
+  return (...v)=>fn(...v,...vals);
 }
 const K=s=>compileExpr(s,[])();
 const isInfTok=t=>/^(inf|infinity|∞|\*)$/i.test(String(t).trim());
@@ -546,32 +583,61 @@ function clip01(x){return Math.max(0,Math.min(1,isFinite(x)?x:0));}
 const WP=(()=>{const a=[],lim=4000,s=new Uint8Array(lim).fill(1);for(let i=2;i<lim;i++){if(s[i]){a.push(i);for(let j=i*i;j<lim;j+=i)s[j]=0;}}return a;})();
 function wprime(n){n=Math.max(1,Math.round(n));return WP[n-1]||WP[WP.length-1];}
 function wfib(n){n=Math.max(1,Math.round(n));let a=1,b=1;for(let i=2;i<n;i++){const c=a+b;a=b;b=c;}return b;}
-function rnd(a,b){if(a==null)return Math.random();if(b==null){b=a;a=0;}return a+Math.random()*(b-a);}
-const WENV={prime:wprime,fib:wfib,rnd,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
+/* ---------- signal sources - suite arc 1.1 ----------
+   One registry: name -> factory(seed) -> the callable the grammar sees. Every
+   voice builds its own bank, so a note replays identically instead of drawing
+   fresh entropy each time, and later guests (a dropped file follower, band
+   energy at hz) register here rather than growing a second path. This text is
+   identical on the main thread and in the worklet: the two must agree or an
+   exported WAV drifts away from what was played. */
+function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
+function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
+function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
+  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
+const SIGNALS={
+  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
+  noise:seed=>x=>perlin1(x,seed)
+};
+const SIGKEYS=Object.keys(SIGNALS);
+function makeSignalBank(seed){ const bank={}; SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); }); return bank; }
+function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
+const WDEFAULT=makeSignalBank(1);
+function rnd(a,b){ return WDEFAULT.rnd(a,b); }
+function noise(x){ return WDEFAULT.noise(x); }
+const WENV={prime:wprime,fib:wfib,rnd,noise,sin:Math.sin,cos:Math.cos,tan:Math.tan,exp:Math.exp,log:Math.log,
   sqrt:Math.sqrt,pow:Math.pow,abs:Math.abs,floor:Math.floor,round:Math.round,sign:Math.sign,
   min:Math.min,max:Math.max,pi:Math.PI,e:Math.E,tau:2*Math.PI,phi:(1+Math.sqrt(5))/2,
   iff:(c,a,b)=>c?a:b, odd:n=>(Math.round(n)%2!==0)?1:0, even:n=>(Math.round(n)%2===0)?1:0,
   not:x=>x?0:1, clamp:(x,lo,hi)=>Math.min(hi,Math.max(lo,x)), step:(edge,x)=>x>=edge?1:0,
   between:(x,lo,hi)=>(x>=lo&&x<=hi)?1:0, mod:(a,b)=>((a%b)+b)%b, clip01};
 const WKEYS=Object.keys(WENV), WVALS=WKEYS.map(k=>WENV[k]);
-function wcompile(expr,vars){ expr=String(expr).replace(/\\*\\*/g,"^").replace(/\\^/g,"**");
-  const fn=new Function(...vars,...WKEYS,"return ("+expr+");"); return (...v)=>fn(...v,...WVALS); }
-function mkDyn(P){ return P.map(pt=>{ const d=pt.dyn; if(!d)return null;
-  return { r:d.r?wcompile(d.r.expr,d.r.vars):null, rV:d.r?d.r.vals:null,
-           q:d.q?wcompile(d.q.expr,d.q.vars):null, qV:d.q?d.q.vals:null }; }); }
+function wcompile(expr,vars,bank){ expr=String(expr).split("**").join("^").split("^").join("**");
+  const fn=new Function(...vars,...WKEYS,"return ("+expr+");");
+  const vals=bank?WKEYS.map(k=>bank[k]||WENV[k]):WVALS;
+  return (...v)=>fn(...v,...vals); }
+function mkDyn(P,bank){ return P.map(pt=>{ const d=pt.dyn; if(!d)return null;
+  return { r:d.r?wcompile(d.r.expr,d.r.vars,bank):null, rV:d.r?d.r.vals:null,
+           q:d.q?wcompile(d.q.expr,d.q.vars,bank):null, qV:d.q?d.q.vals:null }; }); }
 class Cella extends AudioWorkletProcessor{
   static get parameterDescriptors(){ return [{name:'f0',defaultValue:130,minValue:0,maxValue:20000,automationRate:'a-rate'}]; }
   constructor(o){ super(); const p=o.processorOptions;
     this.P=p.parts; this.common=p.common; this.pink=p.pink;
     this.E=p.adsr; this.t0=p.startAt||currentTime; this.f0hint=p.f0hint||130;
     this.det=p.det&&p.det.length?p.det:[0]; this.K=this.det.length;
-    this.dyn=mkDyn(this.P); this.qMul=p.qMul||1;
+    this.bank=makeSignalBank(p.seed==null?1:p.seed);   // one bank per voice
+    this.dyn=mkDyn(this.P,this.bank); this.qMul=p.qMul||1;
+    /* The drive is noise, so seeding it is what makes a cella render repeat at
+       all - the resonators are deterministic given the same excitation. */
+    this.wsrc=mulberry32(hash32((p.seed==null?1:p.seed)+0x2545F491));
+    const spread=mulberry32(hash32((p.seed==null?1:p.seed)+0x5F356495));
     this.dC=p.driftC||0; this.dR=p.driftR||0;
-    this.rnd=this.P.map(()=>Math.random()*2-1); this.lfo=this.P.map(()=>Math.random()*6.283185307);
+    this.rnd=this.P.map(()=>spread()*2-1); this.lfo=this.P.map(()=>spread()*6.283185307);
     this.n=this.P.length; const NK=this.n*this.K;
     this.xbuf=p.exciteSamples||null; this.xlen=this.xbuf?this.xbuf.length:0; this.xRate=p.exciteRate||sampleRate;
     this.xOff=this.xlen?new Float64Array(NK):null;
-    if(this.xOff && !this.common){ for(let i=0;i<NK;i++) this.xOff[i]=Math.random()*this.xlen; }
+    if(this.xOff && !this.common){ for(let i=0;i<NK;i++) this.xOff[i]=spread()*this.xlen; }
     this.re=new Float64Array(NK); this.im=new Float64Array(NK);
     // seed pure-sine modes (sub 0 only) at amplitude·phase; driven modes start at rest
     for(let k=0;k<this.n;k++){ if(!isFinite(this.P[k].q)){ const i0=k*this.K;
@@ -592,7 +658,7 @@ class Cella extends AudioWorkletProcessor{
   ringTail(){ let tail=this.E.r;
     for(let k=0;k<this.n;k++){ const q=this.P[k].q; if(isFinite(q)){ const hz=this.f0hint*this.P[k].ratio; const gamma=Math.PI*hz/q; if(gamma>0) tail=Math.max(tail, 6/gamma); } }
     return Math.min(16,tail); }
-  white(){ return Math.random()*2-1; }
+  white(){ return this.wsrc()*2-1; }
   pinkOf(b,w){ // Paul Kellet pink filter
     b[0]=0.99886*b[0]+w*0.0555179; b[1]=0.99332*b[1]+w*0.0750759; b[2]=0.96900*b[2]+w*0.1538520;
     b[3]=0.86650*b[3]+w*0.3104856; b[4]=0.55000*b[4]+w*0.5329522; b[5]=-0.7616*b[5]-w*0.0168980;
@@ -692,14 +758,17 @@ class FallbackCella{
     this.E=p.adsr; this.t0=p.startAt||ac.currentTime; this.f0hint=p.f0hint||130;
     this.det=p.det&&p.det.length?p.det:[0]; this.K=this.det.length;
     this.qMul=p.qMul||1; this.dC=p.driftC||0; this.dR=p.driftR||0;
-    this.rnd=this.P.map(()=>Math.random()*2-1); this.lfo=this.P.map(()=>Math.random()*6.283185307);
+    this.bank=makeSignalBank(p.seed==null?1:p.seed);
+    this.wsrc=mulberry32(hash32((p.seed==null?1:p.seed)+0x2545F491));
+    const spread=mulberry32(hash32((p.seed==null?1:p.seed)+0x5F356495));
+    this.rnd=this.P.map(()=>spread()*2-1); this.lfo=this.P.map(()=>spread()*6.283185307);
     this.dyn=this.P.map(pt=>{ const d=pt.dyn; if(!d)return null;
-      return { r:d.r?compileExpr(d.r.expr,d.r.vars):null, rV:d.r?d.r.vals:null,
-               q:d.q?compileExpr(d.q.expr,d.q.vars):null, qV:d.q?d.q.vals:null }; });
+      return { r:d.r?compileExpr(d.r.expr,d.r.vars,this.bank):null, rV:d.r?d.r.vals:null,
+               q:d.q?compileExpr(d.q.expr,d.q.vars,this.bank):null, qV:d.q?d.q.vals:null }; });
     this.n=this.P.length; const NK=this.n*this.K;
     this.xbuf=p.exciteSamples||null; this.xlen=this.xbuf?this.xbuf.length:0; this.xRate=p.exciteRate||ac.sampleRate;
     this.xOff=this.xlen?new Float64Array(NK):null;
-    if(this.xOff && !this.common){ for(let i=0;i<NK;i++) this.xOff[i]=Math.random()*this.xlen; }
+    if(this.xOff && !this.common){ for(let i=0;i<NK;i++) this.xOff[i]=spread()*this.xlen; }
     this.re=new Float64Array(NK); this.im=new Float64Array(NK);
     for(let k=0;k<this.n;k++){ if(!isFinite(this.P[k].q)){ const i0=k*this.K;
       this.re[i0]=this.P[k].amp*Math.cos(this.P[k].phase||0); this.im[i0]=this.P[k].amp*Math.sin(this.P[k].phase||0); } }
@@ -721,7 +790,7 @@ class FallbackCella{
     else if(d.type==='setf0'){ this.f0hint=Math.max(1e-4,d.hz); }
     else if(d.type==='release'){ const at=d.at||this.AC.currentTime; this.relAt=at; this.killAt=at+this.ringTail()+0.1; }
   }
-  white(){ return Math.random()*2-1; }
+  white(){ return this.wsrc()*2-1; }
   pinkOf(b,w){
     b[0]=0.99886*b[0]+w*0.0555179; b[1]=0.99332*b[1]+w*0.0750759; b[2]=0.96900*b[2]+w*0.1538520;
     b[3]=0.86650*b[3]+w*0.3104856; b[4]=0.55000*b[4]+w*0.5329522; b[5]=-0.7616*b[5]-w*0.0168980;
@@ -943,7 +1012,7 @@ function realizeNote(hz,vel,opts){ opts=opts||{};
   const parts=PARTIALS.map(p=>({ratio:p.ratio,amp:p.amp,phase:p.phase,q:p.q,dyn:p.dyn||null}));
   const env=ctx.createGain(); env.gain.value=0; env.connect(dest);
   const po={numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1],
-    processorOptions:{parts,common:NOISE_COMMON,pink:NOISE_PINK,adsr:curADSR(),startAt,relAt,f0hint:hz,det:ensembleDet(),qMul:Math.pow(10,+el("qbase").value||0),driftC:+el("driftDepth").value||0,driftR:+el("driftRate").value||0,exciteSamples:EXCITE_SAMPLES,exciteRate:EXCITE_RATE}};
+    processorOptions:{parts,common:NOISE_COMMON,pink:NOISE_PINK,adsr:curADSR(),startAt,relAt,f0hint:hz,det:ensembleDet(),qMul:Math.pow(10,+el("qbase").value||0),driftC:+el("driftDepth").value||0,driftR:+el("driftRate").value||0,exciteSamples:EXCITE_SAMPLES,exciteRate:EXCITE_RATE,seed:nextVoiceSeed(hz)}};
   let node;
   if(opts.forceWorklet){ node=new AudioWorkletNode(ctx,"cella",po); node.parameters.get("f0").setValueAtTime(Math.max(1e-4,hz),startAt); }
   else if(workletReady){
@@ -1580,6 +1649,9 @@ function initUI(){
   bindSlider("ensK",v=>String(Math.round(+v))).addEventListener("input",ensUpd);
   bindSlider("driftDepth",v=>(+v).toFixed(1)+"¢").addEventListener("input",readout);
   bindSlider("driftRate",v=>(+v).toFixed(2)+"Hz").addEventListener("input",readout);
+  const applySeed=()=>{ PATCH_SEED=(parseInt(el("seed").value,10)||0)>>>0; reseedBuild(); applyGrammar(); };
+  el("seed").addEventListener("change",applySeed);
+  el("reseed").addEventListener("click",()=>{ el("seed").value=String((Math.random()*1e6)|0); applySeed(); });
   ["atk","dec","sus","rel"].forEach(id=>bindSlider(id,v=>id==="sus"?v.toFixed(2):v.toFixed(3)+"s").addEventListener("input",pushADSR));
   // apply
   el("applyBtn").addEventListener("click",applyGrammar);
