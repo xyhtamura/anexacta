@@ -522,7 +522,8 @@ const SIGKEYS=Object.keys(SIGNALS);
 /* sources: {name: analysis record} for dropped files, shared by every voice. */
 function makeSignalBank(seed,sources){ const bank={};
   SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); });
-  if(sources) for(const k in sources){ bank[k]=sources[k]?makeFileSource(sources[k]):()=>0; }   // an empty slot reads 0, so a patch survives clearing the file
+  if(sources) for(const k in sources){ const v=sources[k];   // a source is an analysis record, a callable, or nothing
+    bank[k]=typeof v==="function"?v:(v?makeFileSource(v):()=>0); }   // an empty slot reads 0, so a patch survives clearing the file
   return bank; }
 function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
 /* ---------- end signal sources ---------- */
@@ -531,6 +532,19 @@ function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Mat
    The names are in expression scope either way - an empty slot reads 0 - so a
    patch written against a file still parses after the file is cleared. */
 const FILES={file1:null};
+/* An analysis record is ~40 KB per second of sound, and a voice is constructed
+   per note, so shipping it in processorOptions every time would copy megabytes
+   at each note-on for an ordinary-length file. Instead it crosses once per audio
+   context per version of the file; voices carry only the names, and resolve
+   against the worklet's module-scope FILEBANK when an expression actually calls
+   one. Resolving at call time rather than at construction means the order the
+   node and the payload arrive in cannot matter. */
+const FILE_SENT=new WeakMap(); let FILE_VER=0;
+function fileNames(){ const o={}; for(const k in FILES) o[k]=1; return o; }
+function filePayload(ctx){ if(!ctx) return FILES;
+  if(FILE_SENT.get(ctx)===FILE_VER) return null;
+  FILE_SENT.set(ctx,FILE_VER); return FILES; }
+function filesChanged(){ FILE_VER++; reseedBuild(); }
 let PATCH_SEED=1, buildBank=makeSignalBank(PATCH_SEED,FILES), VOICE_N=0;
 function reseedBuild(){ buildBank=makeSignalBank(PATCH_SEED,FILES); }
 /* A voice is seeded by patch, pitch and its position in the performance, so a
@@ -773,11 +787,11 @@ async function loadSoundFile(f){
     const buf=await new Promise((ok,bad)=>{ const p=ctx.decodeAudioData(ab.slice(0),ok,bad);
       if(p&&typeof p.then==="function") p.then(ok,bad); });
     const A=analyzeSound(monoOf(buf),buf.sampleRate);
-    A.name=f.name; FILES.file1=A; reseedBuild(); applyGrammar(); updateFileUI();
-  }catch(e){ FILES.file1=null; reseedBuild(); updateFileUI();
+    A.name=f.name; FILES.file1=A; filesChanged(); applyGrammar(); updateFileUI();
+  }catch(e){ FILES.file1=null; filesChanged(); updateFileUI();
     if(st) st.textContent="could not read "+f.name+" - "+(e.message||e); }
 }
-function clearSoundFile(){ FILES.file1=null; reseedBuild(); applyGrammar(); updateFileUI(); }
+function clearSoundFile(){ FILES.file1=null; filesChanged(); applyGrammar(); updateFileUI(); }
 function updateFileUI(){ const st=el("fileState"); if(!st) return;
   const A=FILES.file1;
   st.textContent=A?(A.name+" - "+A.seconds.toFixed(1)+"s, "+A.nBands+" bands"+(A.truncated?", first "+AN_MAXSEC+"s only":"")):"no file - file1() reads 0";
@@ -831,11 +845,16 @@ const SIGKEYS=Object.keys(SIGNALS);
 /* sources: {name: analysis record} for dropped files, shared by every voice. */
 function makeSignalBank(seed,sources){ const bank={};
   SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); });
-  if(sources) for(const k in sources){ bank[k]=sources[k]?makeFileSource(sources[k]):()=>0; }   // an empty slot reads 0, so a patch survives clearing the file
+  if(sources) for(const k in sources){ const v=sources[k];   // a source is an analysis record, a callable, or nothing
+    bank[k]=typeof v==="function"?v:(v?makeFileSource(v):()=>0); }   // an empty slot reads 0, so a patch survives clearing the file
   return bank; }
 function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
 /* ---------- end signal sources ---------- */
 /* ---------- end signal sources ---------- */
+/* Populated once per AudioWorkletGlobalScope - that is, once per audio context
+   - by whichever voice carried the payload. */
+const FILEBANK={};
+function lookupFile(name){ return (a,b)=>{ const f=FILEBANK[name]; return f?f(a,b):0; }; }
 const WDEFAULT=makeSignalBank(1);
 function rnd(a,b){ return WDEFAULT.rnd(a,b); }
 function noise(x){ return WDEFAULT.noise(x); }
@@ -857,7 +876,9 @@ class Additive extends AudioWorkletProcessor{
   static get parameterDescriptors(){ return [{name:'f0',defaultValue:440,minValue:0,maxValue:24000,automationRate:'a-rate'}]; }
   constructor(o){super();const p=o.processorOptions;
     this.P=p.parts;this.dc=p.driftCents||0;this.dr=p.driftRate||0;this.t0=p.startAt||currentTime;
-    this.bank=makeSignalBank(p.seed==null?1:p.seed,p.files);   // one bank per voice: the note replays as itself
+    if(p.fileData) for(const k in p.fileData) FILEBANK[k]=p.fileData[k]?makeFileSource(p.fileData[k]):null;
+    const refs={}; if(p.files) for(const k in p.files) refs[k]=lookupFile(k);
+    this.bank=makeSignalBank(p.seed==null?1:p.seed,refs);   // one bank per voice: the note replays as itself
     const spread=mulberry32(hash32((p.seed==null?1:p.seed)+0x5F356495));
     this.ph=this.P.map(x=>x.phase||0);this.rnd=this.P.map(()=>spread()*2-1);
     this.lfo=this.P.map(()=>spread()*6.28318);this.relAt=null;this.relLevel=this.P.map(()=>0);this.killAt=Infinity;
@@ -974,7 +995,7 @@ function realizeNote(note,whenSec){
   const parts=audioParts(); note._parts=parts;
   if(workletReady){
     const node=new AudioWorkletNode(AC,"additive",{numberOfInputs:0,numberOfOutputs:1,
-      outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:now,seed:nextVoiceSeed(note.pts[0].hz),files:FILES}});
+      outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:now,seed:nextVoiceSeed(note.pts[0].hz),files:fileNames(),fileData:filePayload(AC)}});
     const f0=node.parameters.get("f0"); note._param=f0;                 // pitch is an automatable param
     f0.cancelScheduledValues(now); f0.setValueAtTime(Math.max(1e-4,note.pts[0].hz),now);
     for(let i=1;i<note.pts.length;i++){ const pt=note.pts[i]; rampParam(f0,pt.hz,now+pt.t,pt.curve); }
@@ -1079,7 +1100,7 @@ function scheduleVoice(note,at,dur,opts){
   const rec={node:null,oscs:null,env,baseHz:note.pts[0].hz,dc,dr,driftTimer:null};
   const vseed=nextVoiceSeed(note.pts[0].hz);
   if(opts.forceWorklet || (ctx===AC && workletReady)){
-    const node=new AudioWorkletNode(ctx,"additive",{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:at,relAt:at+dur,seed:vseed,files:FILES}});
+    const node=new AudioWorkletNode(ctx,"additive",{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1],processorOptions:{parts,driftCents:dc,driftRate:dr,startAt:at,relAt:at+dur,seed:vseed,files:fileNames(),fileData:filePayload(ctx)}});
     const f0=node.parameters.get("f0"); f0.setValueAtTime(Math.max(1e-4,note.pts[0].hz),at);
     for(let i=1;i<note.pts.length;i++) rampParam(f0,note.pts[i].hz,at+note.pts[i].t,note.pts[i].curve);
     node.connect(env); rec.node=node;
