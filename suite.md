@@ -9,8 +9,11 @@ name covers the trio and any later member. Per-tool detail lives in each project
 own `.md` (`aliquoto/aliquoto.md`, `cella/cella.md`, `moire/moire.md`,
 `physa/physa.md`).*
 
-Shipped (2026-07): **Aliquoto**, **Cella**, **Moire** — each a single self-contained
-`index.html` in its own subdirectory of the shared repository.
+Shipped (2026-07): **Aliquoto**, **Cella**, **Moire**, in their own subdirectories
+of the shared repository. Cella and Moire are each a single self-contained
+`index.html`; **Aliquoto is not, as of 2026-09-06** — its engine is extracted into
+ES modules beside the page, so it must be served rather than opened from disk.
+Cella and Moire follow, one at a time.
 Shipped (2026-08): **Physa**, the memristive element as its own member, and the
 first entity in the suite that carries state between evaluations.
 Shipped (2026-08): **Spolium**, the quoted spectrum granular instrument with
@@ -907,3 +910,66 @@ takes constants only, so a wandering hole is a cella thing for now. No `sum`-for
 for cuts in either, so a family of zeros has to be written out. Nothing normalises
 for a cut: removing energy makes the patch quieter, which is honest but means
 depth and master interact.
+
+**2026-09-06 — Claude Code.** Extracted **aliquoto's engine** into ES modules,
+the first of the three. This is the prerequisite the VST section names, and it is
+a web-side win on its own; the other two follow one at a time.
+
+    aliquoto/signals.js    the signal-source block
+    aliquoto/analysis.js   reading a sound as numbers (main thread only)
+    aliquoto/dsl.js        the expression DSL and grammar -> partials
+    aliquoto/worklet.js    the Additive processor
+    aliquoto/index.html    1697 lines -> 1588, and it is the UI now
+
+**The load-bearing change is that `worklet.js` is loaded by URL rather than as a
+Blob.** That is what lets it `import` `signals.js`: a Blob has no base to resolve
+a relative specifier against, which is precisely why the signal block had to be
+*pasted* into the worklet source in the first place. It was checked before the
+design was chosen rather than after — a worklet module can import a sibling in
+both live and offline contexts, and a Blob worklet cannot, with the error
+"Invalid relative url or base scheme isn't hierarchical".
+
+So **the signal block now exists once**. Arc 1.1 built a checker to hold six
+copies byte-identical; aliquoto's two are now one file that both the page and the
+worklet import, and drift between them is no longer representable. That is the
+`AGENTS.md` ladder working in the intended direction — the check was the right
+tool while the copies existed, and the right outcome was to delete the need for
+it. `check_signals.mjs` now *imports* aliquoto's modules and asserts that
+`index.html` and `worklet.js` carry no pasted copy; it still does the old
+scrape-and-evaluate work for cella and moire, which still paste.
+
+**The cost, stated plainly.** Aliquoto is no longer a single self-contained
+`index.html` and no longer opens from `file://`, because module CORS forbids it.
+Xyh confirmed on 2026-09-06 that everything is served anyway. `package.json`
+appeared for this: two lines, no dependencies, no build step, and its only job is
+to tell node to read `.js` as ES modules so `scripts/` can import real code.
+
+**The proof that text was moved and not retyped** is that the default patch still
+renders to peak 0.343992621 / RMS 0.096145107 with the same five sample values to
+nine decimals as the build from before arc 1.1. All three arcs hold through the
+new structure: renders repeat bit-exactly at one seed while repeats inside a
+render differ; the 440 Hz keyfollow test puts played 110, 220 and 440 at 441.4 Hz
+and 330 at silence; the env dip is −58.9 dB with neighbours at +1.1.
+
+**Not seen.** The browser pane is hidden in this environment, so `document.body`
+has height 0 and layout-dependent drawing could not be observed. Checked against
+the pre-extraction build under the same conditions instead — keyboard 37 keys,
+3 surface chips, part table empty in both — so nothing observed is a regression,
+but nobody has *looked* at the extracted page.
+
+**Left undone, and it matters for what comes next.** The extraction is partial:
+`dsl.js` holds the patch seed, the voice counter, the loaded files and the build
+bank as module-level mutable state, reached through accessors because an imported
+binding cannot be assigned to. That is the same state the page had, moved rather
+than redesigned. **Voice construction and the audio graph are still in the page**
+— `realizeNote`, `scheduleVoice` and the oscillator fallback read the DOM for
+drift and master, so the "voice alloc" the plan lists is not yet in the core.
+`window.aliquoto` exists as a debug handle for verification runs; nothing in the
+page uses it.
+
+**On the "one engine, three modules on top" idea** (Xyh, 2026-09-06): nothing here
+forecloses it and the module boundaries were drawn with it in mind, but it is
+deliberately not attempted yet. The order is cella and moire extracted the same
+way first, so that three real module sets exist to compare, and only then hoist
+what is genuinely common into `anexacta/`. Hoisting from one example would be
+guessing at the interface.

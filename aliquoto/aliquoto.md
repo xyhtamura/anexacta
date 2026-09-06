@@ -456,3 +456,30 @@ domain detail.
 notch inside a partial's own skirt, say, or one applied after a gain expression
 rather than at build time — then the series zero is the thing to port, and cella
 is the canonical implementation.
+
+## 2026-09-06 — Claude Code — the engine extraction
+
+The "Engine extraction (prereq)" step in the VST plan below is done for aliquoto.
+Five files where there was one; detail and the measurements are in `../suite.md`.
+What belongs here is how to work on it now.
+
+- **`signals.js` is imported by both `index.html` and `worklet.js`.** There is one
+  copy. Do not paste it anywhere.
+- **`worklet.js` must stay loadable by URL.** If it is ever turned back into a
+  Blob, its `import` breaks — a Blob cannot resolve a relative specifier. The page
+  builds `WORKLET_URL` with `new URL("./worklet.js", import.meta.url)`, which
+  keeps working under `/anexacta/aliquoto/` locally and on Pages.
+- **The page script is `type="module"`.** Nothing in it is on `window`, so a
+  console needs `window.aliquoto`, the debug handle at the bottom of the file. It
+  exists for verification runs; no page code uses it, and it can go when there is
+  a real headless test harness.
+- **`dsl.js` owns the mutable engine state** — patch seed, voice counter, `FILES`,
+  build bank — with `setPatchSeed` / `getPatchSeed` / `getBuildBank` accessors,
+  because an imported binding cannot be assigned to. `FILES` is mutated in place.
+- **It must be served.** `file://` is gone; module CORS forbids it.
+
+**Left undone**: voice construction and the audio graph are still in the page and
+still read the DOM, so the plan's "voice alloc" is not in the core yet. The state
+in `dsl.js` was moved rather than redesigned. Nobody has looked at the extracted
+page — the browser pane is hidden here, so it was verified by DOM and by renders
+that match the pre-extraction build to nine decimals.
