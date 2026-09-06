@@ -651,8 +651,7 @@ function loadWorklet(){
   audioReady=AC.audioWorklet.addModule(WORKLET_URL).then(()=>{
     workletReady=true; engineReady=true; audioMode="worklet"; audioError=null;
     setAudioButton(AC.state==="running"?"audio on":"click audio",AC.state==="running");
-  }).catch(e=>useFallbackAudio(e))
-    .finally(()=>URL.revokeObjectURL(url));
+  }).catch(e=>useFallbackAudio(e));
   return audioReady;
 }
 function enableAudio(){

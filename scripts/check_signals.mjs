@@ -1,17 +1,16 @@
 /* Suite arc 1.1-1.3 - checks the signal seam across Anexacta.
  *
  * Aliquoto's and cella's engines are extracted into ES modules, so their checks
- * IMPORT the real
- * code and run it. Nothing is scraped, nothing is re-evaluated out of a string,
+ * IMPORT the real code and run it. Nothing is scraped, nothing is re-evaluated out of a string,
  * and there is no second copy to disagree with - the page and worklet.js both
  * import signals.js. The two remaining questions for it are whether the modules
  * behave and whether an inline copy has crept back into index.html.
  *
  * Moire still carries the block inline, three times, inside worklet template
- * literals. For it the old method still applies, including
- * evaluating each worklet as a template literal before parsing it - reading the
- * raw text is what let Spolium ship a worklet that threw on every construction
- * while its tests passed.
+ * literals. For it the old method still applies, including evaluating the
+ * worklet as a template literal before parsing it - reading the raw text is what
+ * let Spolium ship a worklet that threw on every construction while its tests
+ * passed.
  *
  * Usage:  node anexacta/scripts/check_signals.mjs [tool ...]
  */
