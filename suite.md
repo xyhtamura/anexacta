@@ -10,9 +10,9 @@ own `.md` (`aliquoto/aliquoto.md`, `cella/cella.md`, `moire/moire.md`,
 `physa/physa.md`).*
 
 Shipped (2026-07): **Aliquoto**, **Cella**, **Moire**, in their own subdirectories
-of the shared repository. **Aliquoto and Cella have their engines extracted into
-ES modules** beside the page (2026-09-06), so they must be served rather than
-opened from disk. Moire is still a single self-contained `index.html` and is next.
+of the shared repository. **All three have their engines extracted into ES
+modules** beside the page (2026-09-06/07), so they must be served rather than
+opened from disk. None of them pastes the signal block any more.
 Shipped (2026-08): **Physa**, the memristive element as its own member, and the
 first entity in the suite that carries state between evaluations.
 Shipped (2026-08): **Spolium**, the quoted spectrum granular instrument with
@@ -1008,3 +1008,55 @@ layout-dependent drawing was not observed.
 **Left undone**: the same partial extraction as aliquoto — `dsl.js` holds moved
 state rather than redesigned state, and voice construction (`realizeNote`,
 `FallbackCella`) is still in the page reading the DOM.
+
+**2026-09-07 — Claude Code.** Extracted **moire's engine**, the last of the three.
+`signals.js`, `analysis.js`, `compiler.js`, `worklet.js`, and an `index.html` down
+from 2052 lines to 1517.
+
+**Moire did not take the other two's shape, and that is the useful finding.**
+Aliquoto and cella parse a grammar into a list of partials that the worklet then
+reads, so their core is `dsl.js`. Moire compiles the whole weave into one
+JavaScript function and ships its *source* to the worklet, where
+`new Function("BANK", source)` builds it — so its core is a **compiler**, and the
+two are not variants of one thing.
+
+**Three copies became none.** Moire carried the signal block in its page, in
+`PRELUDE`, and in its worklet. The `PRELUDE` copy existed for one reason: a
+generated function cannot import, so it needed a `makeSignalBank` to fall back on
+when no `BANK` was supplied. Supplying one always — from the voice for a compiled
+voice, from `FOLD_BANK` for the constant-folding calls — removed the reason and
+the copy with it. The only change the extraction forced on the compiler itself is
+that `compileProgram` takes its ceiling as an argument rather than reading the
+DOM.
+
+**`sync_signals.mjs` is deleted.** It existed to hold pasted copies together;
+nothing pastes now. `check_signals.mjs` keeps its inline path for a tool that is
+not yet extracted — a new member, or one mid-extraction — and gained a check that
+the three `signals.js` and `analysis.js` files are byte-identical, which is what
+makes hoisting them a move rather than a merge.
+
+**A bug the cut introduced, and how it was found.** The cut left
+`compileProgram`'s tail orphaned in the page — a top-level `return` — which killed
+the entire page module. **The console recorded nothing**, which is the part worth
+remembering: a module that fails to parse leaves no trace in the console history
+this environment reads. It was found by fetching the page, slicing its own module
+body out, rewriting the relative specifiers to absolute, importing it as a blob,
+and reading the error: `SyntaxError: Illegal return statement`. That technique is
+the one to reach for when a module page comes up dead and silent.
+
+**Verified**: the default patch renders to peak 0.165620133 / RMS 0.034012892 with
+the same three sample values to nine decimals as before. Arc 1.3 cuts the emergent
+sideband by 38.0 dB with carrier and 6th at 0.0 dB; arc 1.2's Bessel signature
+holds at 1.00 / 0.16 / 0.92 / 1.09 / 0.71 against |Jₖ(4)| of 1.00 / 0.17 / 0.92 /
+1.08 / 0.71; arc 1.1 repeats bit-exactly at one seed, differs at another, and
+repeats inside one render differ. **The live audio path was exercised this time,
+not only the offline one** — that is where cella's extraction bug had hidden.
+
+**What the three module sets now say about a shared engine.** `signals.js` and
+`analysis.js` are byte-identical across all three, so they hoist as a move.
+`worklet.js` does not: three different processors. And the core file is the real
+answer — `dsl.js` twice, `compiler.js` once, and the compiler is not a variant of
+the grammar parser. So a shared `anexacta/` engine looks like **the signal sources
+and the analysis, and probably the expression DSL that aliquoto and cella share**,
+with the grammar, the compiler and the DSP staying per-tool. That is now grounded
+in three examples rather than guessed from one.

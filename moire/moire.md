@@ -474,3 +474,36 @@ decimals — `applyCuts` returns early when there are none. Console clean.
 
 **Left undone**: moire's cut takes constants only, where cella's takes `t` in
 ratio and Q — so a wandering hole is a cella thing until this is brought level.
+
+## 2026-09-07 — Claude Code — the engine extraction
+
+Five files where there was one; measurements in `../suite.md`. Moire's shape
+differs from aliquoto's and cella's, so read this before editing:
+
+- **`compiler.js`, not `dsl.js`.** Moire compiles a whole weave into one function
+  and ships its source to the worklet; it does not build a partial list. The file
+  holds `PRELUDE`, the parser, `compileProgram`, and the engine state.
+- **`PRELUDE` no longer contains the signal block.** It used to, because a
+  generated function cannot import and needed a `makeSignalBank` to fall back on.
+  `BANK` is now always supplied — the voice's own for a compiled voice,
+  `FOLD_BANK` for the constant-folding calls in `evalIndexExpr` / `evalIndexPred`.
+  If you add another `Function(...PRELUDE...)` call site, **it must pass a BANK**.
+- **`compileProgram(text, ceil)` takes its ceiling as an argument.** The page reads
+  the `#ceil` control and passes the number.
+- **`worklet.js` must stay loadable by URL** or its `import` of `signals.js`
+  breaks; a Blob cannot resolve a relative specifier. Both `addModule` calls use
+  `WORKLET_URL`.
+- **The page script is `type="module"`**, so nothing is on `window`. Use
+  `window.moire`, the debug handle at the bottom.
+- **It must be served.** `file://` is gone.
+
+**If the page ever comes up dead with a clean console**, it is a module that
+failed to parse: fetch `index.html`, slice out its module body, rewrite `./` to
+absolute, `import()` it as a blob and read the real error. That is how the
+orphaned `return` this extraction left behind was found.
+
+**Left undone**: voice construction (`voiceSpec`, `FallbackVoice`,
+`renderMidiOffline`) is still in the page and still reads the DOM. Nobody has
+looked at the extracted page; the browser pane is hidden here, so it was checked
+by DOM, by renders matching the pre-extraction build to nine decimals, and by
+driving the live audio path.
