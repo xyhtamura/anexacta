@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Not an npm project. This file exists so node reads the engine's .js files as ES modules, which is what lets scripts/ import real code instead of scraping index.html. No dependencies, no build step; the browser ignores it."
+}
