@@ -495,6 +495,7 @@ textarea:focus{border-color:var(--iris-green);box-shadow:inset 0 2px 14px #000a,
           <div><b>rnd()</b> draws, <b>noise(x)</b> reads a smooth field &mdash; both seeded per voice, so a render repeats</div>
           <div><b>file1(t)</b> a dropped sound's loudness, <b>file1(hz,t)</b> its energy at <b>hz</b>, <b>wave1(t)</b> its samples</div>
           <div>the sound supplies numbers, never audio &mdash; <b>op(1, 6*wave1(t))</b> makes it the modulator: PM cross-synthesis</div>
+          <div><b>cut : r : depth : Q</b> &mdash; a zero over the weave. Sidebands are emergent, so this is the only way to reach one</div>
           <div><b>I&times;</b> scales every phase depth &mdash; <b>I&times;0</b> = pure carriers (the additive limit)</div>
         </div>
       </div>
@@ -1072,11 +1073,25 @@ function expandSum(rhs,ceilLimit,lineNo){
   if(!terms.length) return "0";
   return "("+terms.join("+")+")";
 }
-function parseProgram(text,ceilLimit){
+/* cut : r : depth : Q - a zero over the woven output. Moire is where this is
+   not sugar: its sidebands are emergent, produced by the interference rather
+   than written down, so there is no line whose amplitude could be scaled to
+   reach one. A series zero after the sum is the only way to sculpt them. */
+function parseCut(line,lineNo){
+  const c=line.replace(/^cut\b/i,"").replace(/^\s*:/,"").split(":").map(x=>x.trim());
+  const r=Number(evalIndexExpr(c[0],{}));
+  if(!(r>0)) throw new Error("line "+lineNo+": cut needs a ratio > 0");
+  const depth=c.length>1?Number(evalIndexExpr(c[1],{})):1;
+  const q=c.length>2?Number(evalIndexExpr(c[2],{})):30;
+  if(!isFinite(q)||q<=0) throw new Error("line "+lineNo+": cut needs a finite Q > 0");
+  return {ratio:r,depth:isFinite(depth)?depth:1,q:Math.max(.5,q)};
+}
+function parseProgram(text,ceilLimit,cuts){
   const lines=[];
   text.split(/\r?\n/).forEach((raw,idx)=>{
     const line=stripComment(raw);
     if(!line) return;
+    if(/^cut\b/i.test(line)){ if(cuts) cuts.push(parseCut(line,idx+1)); return; }
     const colon=line.indexOf(":");
     if(colon>0){
       const lhs=line.slice(0,colon).trim();
@@ -1088,7 +1103,7 @@ function parseProgram(text,ceilLimit){
     }
     lines.push({name:"y",expr:line,lineNo:idx+1});
   });
-  if(!lines.length) throw new Error("empty weave");
+  if(!lines.length) throw new Error(cuts&&cuts.length?"a cut needs something to cut - write a weave too":"empty weave");
   const seen=new Set();
   for(const ln of lines){
     if(seen.has(ln.name)) throw new Error("line "+ln.lineNo+": duplicate signal '"+ln.name+"'");
@@ -1110,7 +1125,8 @@ function instrumentOps(expr,counter){
 }
 function compileProgram(text){
   const ceilLimit=clamp(parseInt($("ceil").value,10)||40,1,96);
-  const lines=parseProgram(text,ceilLimit);
+  const cuts=[];
+  const lines=parseProgram(text,ceilLimit,cuts);
   const names=lines.map(l=>l.name);
   const outputIndex=names.includes("y")?names.indexOf("y"):names.length-1;
   const opCounter={n:0};
@@ -1149,7 +1165,7 @@ return function(t,f0,state,idxMul,driftDepth,driftRate,dt){
   return Math.max(-2,Math.min(2,out));
 }`;
   const fn=(new Function(source))();
-  return {source,fn,lineCount:lines.length,opCount:opCounter.n,output:outName,ownsEnv,ceil:ceilLimit,names,
+  return {source,fn,cuts,lineCount:lines.length,opCount:opCounter.n,output:outName,ownsEnv,ceil:ceilLimit,names,
     lines:lines.map(l=>({name:l.name,expr:l.expr})),outputName:outName};
 }
 
@@ -1241,6 +1257,7 @@ class MoireVoice extends AudioWorkletProcessor{
     const spread=mulberry32(hash32((o.seed==null?1:o.seed)+0x5F356495));
     const lc=Math.max(1,o.lineCount||1), oc=Math.max(1,o.opCount||1);
     this.state={s:new Float64Array(lc),rnd:new Float64Array(oc),lfo:new Float64Array(oc),ph:new Float64Array(oc)};
+    this.cuts=o.cuts||[]; this.cre=new Float64Array(this.cuts.length); this.cim=new Float64Array(this.cuts.length);
     for(let i=0;i<oc;i++){this.state.rnd[i]=spread()*2-1;this.state.lfo[i]=spread()*Math.PI*2}
     this.f0=+o.f0||220; this.vel=+o.vel||.8; this.gain=+o.gain||.7;
     this.idxMul=+o.idxMul; this.driftDepth=+o.driftDepth||0; this.driftRate=+o.driftRate||.2;
@@ -1270,6 +1287,23 @@ class MoireVoice extends AudioWorkletProcessor{
     }
     return this.env;
   }
+  /* Feedforward: each zero reads the signal handed to it, never its own output,
+     so it cannot ring. 2*(1-rr) is the unity-gain scale at the centre - a real
+     input splits into two exponentials and the resonator answers one, so half
+     the factor would leave a 6 dB dip where depth 1 should be a null. Centre is
+     f0*ratio, so a zero keyfollows the played note like everything else here. */
+  applyCuts(y,dt){
+    const C=this.cuts; if(!C.length) return y;
+    const sr=1/dt, TAU=Math.PI*2;
+    for(let c=0;c<C.length;c++){
+      const hz=this.f0*C[c].ratio, w=TAU*hz/sr, rr=Math.exp(-Math.PI*hz/C[c].q/sr);
+      const re=this.cre[c], im=this.cim[c];
+      this.cre[c]=rr*Math.cos(w)*re - rr*Math.sin(w)*im + y;
+      this.cim[c]=rr*Math.cos(w)*im + rr*Math.sin(w)*re;
+      y -= 2*(1-rr)*C[c].depth*this.cre[c];
+    }
+    return y;
+  }
   process(ins,outs){
     const L=outs[0][0], R=outs[0][1]||L, dt=1/sampleRate;
     for(let i=0;i<L.length;i++){
@@ -1277,7 +1311,8 @@ class MoireVoice extends AudioWorkletProcessor{
       if(now<this.startAt){ L[i]=0; R[i]=0; continue; }
       if(this.relAt!==Infinity && now>=this.relAt) this.release();
       const g=this.envStep(dt);
-      const y=this.fn&&this.alive?this.fn(this.t,this.f0,this.state,this.idxMul,this.driftDepth,this.driftRate,dt):0;
+      let y=this.fn&&this.alive?this.fn(this.t,this.f0,this.state,this.idxMul,this.driftDepth,this.driftRate,dt):0;
+      y=this.applyCuts(y,dt);
       const v=Math.max(-1,Math.min(1,y*g*this.vel*this.gain*.28));
       L[i]=v; R[i]=v; this.t+=dt;
     }
@@ -1288,6 +1323,24 @@ registerProcessor("moire-voice",MoireVoice);
 `;
 
 class FallbackVoice{
+  /* Feedforward: each zero reads the signal handed to it, never its own output,
+     so it cannot ring. 2*(1-rr) is the unity-gain scale at the centre - a real
+     input splits into two exponentials and the resonator answers one, so half
+     the factor would leave a 6 dB dip where depth 1 should be a null. Centre is
+     f0*ratio, so a zero keyfollows the played note like everything else here. */
+  applyCuts(y,dt){
+    const C=this.cuts; if(!C.length) return y;
+    const sr=1/dt, TAU=Math.PI*2;
+    for(let c=0;c<C.length;c++){
+      const hz=this.f0*C[c].ratio, w=TAU*hz/sr, rr=Math.exp(-Math.PI*hz/C[c].q/sr);
+      const re=this.cre[c], im=this.cim[c];
+      this.cre[c]=rr*Math.cos(w)*re - rr*Math.sin(w)*im + y;
+      this.cim[c]=rr*Math.cos(w)*im + rr*Math.sin(w)*re;
+      y -= 2*(1-rr)*C[c].depth*this.cre[c];
+    }
+    return y;
+  }
+
   constructor(ctx,o){
     this.ctx=ctx; this.node=ctx.createScriptProcessor(512,0,2);
     this.bank=makeSignalBank(o.seed==null?1:o.seed,FILES);   // one bank per voice
@@ -1295,6 +1348,7 @@ class FallbackVoice{
     const spread=mulberry32(hash32((o.seed==null?1:o.seed)+0x5F356495));
     const lc=Math.max(1,o.lineCount||1), oc=Math.max(1,o.opCount||1);
     this.state={s:new Float64Array(lc),rnd:new Float64Array(oc),lfo:new Float64Array(oc),ph:new Float64Array(oc)};
+    this.cuts=o.cuts||[]; this.cre=new Float64Array(this.cuts.length); this.cim=new Float64Array(this.cuts.length);
     for(let i=0;i<oc;i++){this.state.rnd[i]=spread()*2-1;this.state.lfo[i]=spread()*TAU}
     this.f0=o.f0||220; this.vel=o.vel||.8; this.gain=o.gain||.7;
     this.idxMul=o.idxMul; this.driftDepth=o.driftDepth||0; this.driftRate=o.driftRate||.2;
@@ -1305,7 +1359,8 @@ class FallbackVoice{
       const dt=1/this.ctx.sampleRate;
       for(let i=0;i<L.length;i++){
         const g=this.envStep(dt);
-        const y=this.alive?this.fn(this.t,this.f0,this.state,this.idxMul,this.driftDepth,this.driftRate,dt):0;
+        let y=this.alive?this.fn(this.t,this.f0,this.state,this.idxMul,this.driftDepth,this.driftRate,dt):0;
+        y=this.applyCuts(y,dt);
         const v=Math.max(-1,Math.min(1,y*g*this.vel*this.gain*.28));
         L[i]=v; R[i]=v; this.t+=dt;
       }
@@ -1370,7 +1425,7 @@ function applyGrammar(){
   try{
     CURRENT=compileProgram(srcEl.value);
     errEl.style.display="none";
-    $("compileChip").textContent=CURRENT.lineCount+" lines / "+CURRENT.opCount+" ops";
+    $("compileChip").textContent=CURRENT.lineCount+" lines / "+CURRENT.opCount+" ops"+(CURRENT.cuts.length?" / "+CURRENT.cuts.length+" cut":"");
     $("plateRead").textContent="compiled "+CURRENT.names.join(" -> ");
     renderMath();
     return CURRENT;
@@ -1498,7 +1553,7 @@ function updateAudioLabels(){
 function voiceSpec(hz,vel){
   if(!CURRENT) applyGrammar();
   const p=currentParams();
-  return {source:CURRENT.source,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:hz,vel:vel||.8,seed:nextVoiceSeed(hz),files:fileNames(),fileData:filePayload(AC),...p};
+  return {source:CURRENT.source,cuts:CURRENT.cuts,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:hz,vel:vel||.8,seed:nextVoiceSeed(hz),files:fileNames(),fileData:filePayload(AC),...p};
 }
 function startNote(id,hz,vel=.85){
   if(!CURRENT && !applyGrammar()) return null;
@@ -1629,7 +1684,7 @@ async function renderMidiOffline(){
   const mst=OC.createGain(); mst.gain.value=1; mst.connect(OC.destination);
   for(let k=0;k<MIDI_NOTES.length;k++){
     const nt=MIDI_NOTES[k];
-    const spec={source:CURRENT.source,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:midiToHz(nt.n),vel:nt.vel,startAt:nt.t,relAt:nt.t+nt.dur,seed:nextVoiceSeed(midiToHz(nt.n)),files:fileNames(),fileData:filePayload(OC),...p};
+    const spec={source:CURRENT.source,cuts:CURRENT.cuts,lineCount:CURRENT.lineCount,opCount:CURRENT.opCount,f0:midiToHz(nt.n),vel:nt.vel,startAt:nt.t,relAt:nt.t+nt.dur,seed:nextVoiceSeed(midiToHz(nt.n)),files:fileNames(),fileData:filePayload(OC),...p};
     const node=new AudioWorkletNode(OC,"moire-voice",{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2],processorOptions:spec});
     node.connect(mst);
   }
