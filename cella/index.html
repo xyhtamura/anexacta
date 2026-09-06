@@ -509,7 +509,6 @@ function makeSignalBank(seed,sources){ const bank={};
   return bank; }
 function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
 /* ---------- end signal sources ---------- */
-/* ---------- end signal sources ---------- */
 /* ---------- sound analysis - suite arc 1.2 ----------
    Analysis runs once, on load, on the main thread; only the lookup crosses into
    the worklet, and that half is in the shared signal block. The grid is
@@ -769,7 +768,6 @@ function makeSignalBank(seed,sources){ const bank={};
     bank[k]=typeof v==="function"?v:(v?(/^wave/.test(k)?makeWaveSource(v):makeFileSource(v)):()=>0); }   // an empty slot reads 0, so a patch survives clearing the file
   return bank; }
 function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
-/* ---------- end signal sources ---------- */
 /* ---------- end signal sources ---------- */
 /* Populated once per AudioWorkletGlobalScope - that is, once per audio context
    - by whichever voice carried the payload. */
