@@ -442,3 +442,35 @@ The analysis half is hand-synced from aliquoto between markers — run
 
 **Left undone**: the waveform is kept to 30 s; one file slot, so two operators
 cannot read different sounds.
+
+## 2026-09-06 — Claude Code — suite arc 1.3: the zero, where nothing else reaches
+
+`cut : r : depth : Q` over the woven output, ported from cella. This is the tool
+`../suite.md` called the one where a zero is irreplaceable rather than sugar, and
+the measurement bears that out: moire's sidebands are **emergent**, produced by
+the interference rather than written down, so there is no line whose amplitude an
+`env` could scale to reach one.
+
+Measured on `m : op(2.5)` / `y : op(1, 4*m)`, whose sidebands land at
+f₀·(1 ± 2.5k) — 1.5, 3.5, 4, 6 — none of them a written line:
+
+| cut | effect |
+| --- | --- |
+| `cut : 4 : 1 : 20` | −38.0 dB at 4·f₀; carrier 0.0 dB, 6·f₀ 0.0 dB |
+| `cut : 3.5 : 1 : 20` | −38.1 dB at 3.5·f₀; 1.5, 4 and 6 all within 0.1 dB |
+| two cuts at once | both bands −38.1 dB, carrier −0.1 dB |
+
+Depth is monotone: 0, −2.5, −6, −12.1, −38 dB. The notch goes far deeper here
+than in cella (−38 against −17.6) because a sideband is a pure sinusoid while a
+cella line is a resonator peak with skirts a narrow notch cannot cover.
+
+`cut` lines are pulled out in `parseProgram` before a line becomes a signal, so
+they cannot collide with signal names, and a cut with no weave now says "a cut
+needs something to cut" rather than "empty weave". The cascade runs in
+`applyCuts`, feedforward, on the voice's own output before the envelope.
+
+Regression: the default patch renders identically to the pre-1.3 build to nine
+decimals — `applyCuts` returns early when there are none. Console clean.
+
+**Left undone**: moire's cut takes constants only, where cella's takes `t` in
+ratio and Q — so a wandering hole is a cella thing until this is brought level.

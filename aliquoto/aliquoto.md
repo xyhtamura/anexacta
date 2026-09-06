@@ -437,3 +437,22 @@ both marked regions.
 
 **Left undone**: one file slot rather than one per partial; the waveform is kept to
 30 s against the analysis's 180 s; a 2048/512 STFT smears motion faster than ~12 ms.
+
+## 2026-09-06 — Claude Code — suite arc 1.3: nothing built, claim checked
+
+`../suite.md` said aliquoto needs nothing for the negative-lines arc, because its
+lines are discrete and scaling a line's amplitude *is* the notch. That is correct,
+and it is now checked rather than assumed: on `sum n=1..8 : n : 1/n`, adding
+`env : 1-0.999*between(r,2.5,3.5)` drops the third partial by **58.9 dB** — a
+0.999 dip predicts −60 — while 2·f₀ and 4·f₀ move +1.1 dB, which is the
+renormalisation and not a leak.
+
+So aliquoto has no `cut` line, on purpose. The divergence is recorded in
+`../../DEPENDENCIES.md`: the trio's grammars are no longer the same grammar, and
+that is the first place they have parted company on a feature rather than on a
+domain detail.
+
+**Where it would matter later**: if the `env`-dip route is ever not enough — a
+notch inside a partial's own skirt, say, or one applied after a gain expression
+rather than at build time — then the series zero is the thing to port, and cella
+is the canonical implementation.

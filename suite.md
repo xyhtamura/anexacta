@@ -157,8 +157,32 @@ signal-source registry described in arc 1.1 below.
 
    **A file crosses once per audio context**, not once per note — see the
    2026-09-06 entry. The decode/analysis infra doubles as groundwork for member 5.
-3. **1.3 — negative lines.** Prototype in cella (physics home), port the series
-   zero to moire; aliquoto needs nothing (`env` dip already is it).
+3. **1.3 — negative lines. Shipped 2026-09-06; the 1.x arcs are closed.** Two
+   different entities, as the ideation predicted:
+
+   - **The parallel subtract** — a line with negative `a`, which drives in
+     antiphase. Cella only. It cancels against a *correlated* response, so it
+     needs **common** drive: −31.9 dB against the line it opposes. Under
+     independent drive it *adds* 3 dB, because subtracting an uncorrelated stream
+     is just more noise. The trap the notes predicted, now measured.
+   - **The series zero** — `cut : r : depth : Q`, in cella and moire. Not a line
+     in the bank but a unity-gain bandpass of the output, subtracted, so it carves
+     what is actually there rather than scaling what was written. Drive-agnostic,
+     ratio-defined so it keyfollows, and it takes `t`.
+
+   **The three depths of necessity were real.** Aliquoto needed nothing and this
+   was checked, not assumed: `env : 1-0.999*between(r,2.5,3.5)` drops its third
+   partial 58.9 dB with neighbours at +1.1 dB, which is what a 0.999 dip should
+   do. Cella gained physics it did not have — a cut at 3.5 with no line there
+   takes 13.7 dB out of the tails, which no `env` can touch. Moire is where it is
+   irreplaceable and where it also works best: cutting an emergent sideband takes
+   **38 dB** out of it and leaves the carrier and every other sideband within
+   0.1 dB.
+
+   **Depth is set by geometry, not by the control.** A notch narrower than what it
+   is cutting leaves the skirts. Against a Q=60 cella line, a Q=5 cut reaches
+   −27.7 dB and a Q=300 cut only −2.7 dB; in moire, where a sideband is a pure
+   sinusoid, Q=20 reaches −38 dB. To remove a cella line, cut at or below its Q.
 
 One dropped file across all three tools = the taxonomy demo: aliquoto
 *dereferences* it, cella is *rung* by it, moire *weaves* with it.
@@ -848,3 +872,38 @@ where the analysis reaches 180 s. Nothing saves patches, so nothing yet carries 
 file reference — which is exactly the pre-port decision named in the VST section.
 Analysis is a fixed 2048/512 STFT; a file whose interesting motion is faster than
 about 12 ms is smeared.
+
+**2026-09-06 — Claude Code.** Built **suite arc 1.3**, the negative lines, which
+closes the 1.x arcs. Details in the arc entry above; what belongs here is the one
+thing that went differently from the plan and the one number that surprised me.
+
+**The plan said to test before building, and the test failed.** `cella/cella.md`
+recorded a hypothesis — that a negative `a` under common drive might *already* be
+an anti-line, latent in the grammar — and told the next agent to check before
+building anything. It was not latent, and the reason was findable in one line: the
+drive gain read `Math.abs(P[k].amp)`, so a negative line drove exactly like a
+positive one. The first measurement showed energy at the opposed frequency going
+*up* 5 dB, because what had been added was a second identical resonator. Recording
+the hypothesis was still the right call: it cost one measurement to settle and it
+named the exact place to look.
+
+**Two corrections came from measuring rather than reasoning.** The unity-gain
+scale for the zero is `2*(1-rr)`, not `(1-rr)` — a real input splits into two
+exponentials and the resonator answers one of them, so the first build was 6 dB
+shy of a null and measured −4.3 dB where it should have nulled. And notch depth
+turned out to be set by the *ratio of bandwidths*, not by the depth control: a cut
+narrower than the peak it is cutting leaves the skirts standing. Neither is
+visible from the algebra without checking it against a spectrum.
+
+**A one-session caution about caching.** An early run of the parallel-subtract
+test reported no change at all, and the code was correct — the browser was serving
+a cached page. Every later measurement in this arc used a cache-busting query.
+Worth knowing, because a stale page reads exactly like a feature that does not
+work.
+
+**Left undone.** `cut` exists in cella and moire and not in aliquoto, deliberately
+— see `../DEPENDENCIES.md`. Cella's cut takes `t` in its ratio and Q; moire's
+takes constants only, so a wandering hole is a cella thing for now. No `sum`-form
+for cuts in either, so a family of zeros has to be written out. Nothing normalises
+for a cut: removing energy makes the patch quieter, which is honest but means
+depth and master interact.

@@ -486,3 +486,41 @@ Console clean.
 
 **Left undone**: the excitation is still read at a fixed rate; the analysis and the
 excitation share one slot, so two different sounds cannot ring and shape at once.
+
+## 2026-09-06 — Claude Code — suite arc 1.3: both kinds of negative line
+
+The "Negative lines — anti-resonance" section below is built, both (a) and (b).
+Its instruction to test (a) before building was followed and is the reason this
+entry exists: **the hypothesis was wrong, for a findable reason.**
+
+**(a) Parallel subtract.** Not latent after all — the per-partial drive gain read
+`Math.abs(P[k].amp)`, so a negative line drove identically to a positive one.
+Adding `3 : -1/3` to a bank that already had n=3 therefore *raised* energy at
+3·f₀ by 5 dB: a second identical resonator, not an opposed one. The gain is now
+signed, which also makes driven modes agree with sine modes, where the amplitude
+was always signed. Measured after the fix: `3 : -1` renders as the exact negation
+of `3 : 1` (max |sum| = 0); against the sum's own n=3 line it cancels to
+**−31.9 dB** under common drive with a −1 dB control at 2·f₀; under independent
+drive it **adds 3 dB**, which is the trap the section predicted.
+
+**(b) Series zero**, the grammar candidate the section proposed, built as written:
+`cut : r : depth : Q`. It is not a line in the bank — it takes the bank's output
+and subtracts a unity-gain bandpass of it. Drive-agnostic (works in both modes),
+neighbours untouched (0.0 dB at 2·f₀ and 4·f₀), depth monotone
+(0, −2.4, −5.8, −11, −15.6, −17.6 dB), and it reaches what `env` cannot: a cut at
+3.5 where **no line sits** takes 13.7 dB out of the tails while leaving 3·f₀ at
+−0.1 dB. Ratio-defined, so it keyfollows; takes `t` in both ratio and Q, so a
+wandering hole compiles and runs.
+
+**Two things measurement corrected.** The scale is `2*(1-rr)`, not `(1-rr)` — a
+real input splits into two exponentials and the resonator answers one, so the
+first version measured −4.3 dB where depth 1 should null. And depth is bandwidth
+geometry: against a Q=60 line, a Q=5 cut reaches −27.7 dB, Q=30 −17.6 dB, Q=300
+only −2.7 dB. **To remove a line, cut at or below its Q.**
+
+Regression: the default patch renders identically to the pre-1.3 build — peak,
+RMS and sample values to nine decimals — so the signed drive changes nothing for
+a patch with no negative amplitude. Console clean.
+
+**Left undone**: no `sum` form for cuts, so a family of zeros is written out one
+line at a time; nothing normalises for a cut, so depth and master interact.
