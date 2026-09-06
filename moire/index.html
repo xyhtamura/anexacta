@@ -636,7 +636,20 @@ textarea:focus{border-color:var(--iris-green);box-shadow:inset 0 2px 14px #000a,
   </section>
 </main>
 
-<script>
+<script type="module">
+/* The engine lives in its own modules now; this file is the weave's face.
+   worklet.js is loaded by URL rather than as a Blob, which is what lets it
+   import signals.js. There used to be three copies of the signal block in this
+   file - page, PRELUDE and worklet - and there are now none. */
+import { RESERVED, PRELUDE, stripComment, jsExpr, compileProgram, parseProgram, parseCut,
+         FILES, fileNames, filePayload, filesChanged, reseedBuild,
+         nextVoiceSeed, resetVoiceCounter, rnd, noise,
+         setPatchSeed, getPatchSeed, getBuildBank, FOLD_BANK } from "./compiler.js";
+import { AN_FFT, AN_HOP, AN_BPO, AN_FMIN, AN_MAXSEC, AN_WAVESEC,
+         fftMag, analyzeSound, monoOf } from "./analysis.js";
+import { mulberry32, hash32, perlin1, makeFileSource, makeWaveSource,
+         makeSignalBank, voiceSeed } from "./signals.js";
+const WORKLET_URL=new URL("./worklet.js", import.meta.url);
 "use strict";
 
 const TAU=Math.PI*2;
@@ -740,130 +753,13 @@ function between(x,a,b){return x>=Math.min(a,b)&&x<=Math.max(a,b)?1:0}
 function clamp(x,a,b){return Math.min(Math.max(x,a),b)}
 function clip01(x){return clamp(x,0,1)}
 function mod(a,b){return ((a%b)+b)%b}
-/* ---------- signal sources - suite arc 1.1 ----------
-   One registry: name -> factory(seed) -> the callable the grammar sees. Every
-   voice builds its own bank, so a note replays identically instead of drawing
-   fresh entropy each time, and guests that carry data (a dropped file, arc 1.2)
-   join the same bank rather than growing a second path. This text is identical
-   on the main thread and in the worklet: the two must agree or an exported WAV
-   drifts away from what was played. scripts/check_signals.mjs asserts that. */
-function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
-  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
-function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
-function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
-  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
-/* A dropped file read as numbers rather than as audio (arc 1.2). Two call
-   shapes, one question each: f(t) is the loudness follower, f(hz,t) is the
-   energy in the band at hz - which is the keyfollow vocoder, since a partial
-   asks about its own hz and its hz follows the played note. Both come back
-   0..1 over the whole file, so either can be used as a gain unscaled. t is note
-   age, like every other t in the grammar, so each note reads from the start. */
-function makeFileSource(A){
-  const B=A.bands, nb=A.nBands|0, nf=A.nFrames|0, fr=A.frameRate, fol=A.follow;
-  const lo=A.logMin, bpo=A.bpo;
-  const at=t=>{ const x=t*fr; return x<=0?0:(x>=nf-1?nf-1:x); };
-  const follow=t=>{ if(nf<1)return 0; const x=at(t),i=x|0,j=i+1<nf?i+1:i;
-    return fol[i]+(fol[j]-fol[i])*(x-i); };
-  const band=(hz,t)=>{ if(nf<1||!(hz>0))return 0;
-    const y=(Math.log2(hz)-lo)*bpo; if(y<0||y>nb-1)return 0;
-    const x=at(t),i=x|0,j=i+1<nf?i+1:i,fx=x-i;
-    const k=y|0,l=k+1<nb?k+1:k,fy=y-k;
-    const p=B[i*nb+k]+(B[i*nb+l]-B[i*nb+k])*fy;
-    const q=B[j*nb+k]+(B[j*nb+l]-B[j*nb+k])*fy;
-    return p+(q-p)*fx; };
-  return (p,q)=>q===undefined?follow(p):band(p,q);
-}
-/* The same file read as a waveform rather than as a measurement. This is the one
-   shape that carries the file's own signal rather than a description of it, so
-   it is what phase-modulation cross-synthesis wants: the sound itself becomes the
-   modulator. Linear interpolation, silence outside the file, and it stops at
-   whatever the loader kept - a waveform costs about 176 KB per second where the
-   analysis costs 40, so the loader keeps less of it. */
-function makeWaveSource(A){
-  const w=A.wave, rate=A.waveRate, n=w?w.length:0;
-  return t=>{ if(!n)return 0; const x=t*rate; if(x<0||x>=n-1)return 0;
-    const i=x|0, f=x-i; return w[i]+(w[i+1]-w[i])*f; };
-}
-const SIGNALS={
-  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
-  noise:seed=>x=>perlin1(x,seed)
-};
-const SIGKEYS=Object.keys(SIGNALS);
-/* sources: {name: analysis record} for dropped files, shared by every voice. */
-function makeSignalBank(seed,sources){ const bank={};
-  SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); });
-  if(sources) for(const k in sources){ const v=sources[k];   // a source is an analysis record, a callable, or nothing
-    bank[k]=typeof v==="function"?v:(v?(/^wave/.test(k)?makeWaveSource(v):makeFileSource(v)):()=>0); }   // an empty slot reads 0, so a patch survives clearing the file
-  return bank; }
-function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
-/* ---------- end signal sources ---------- */
-/* ---------- sound analysis - suite arc 1.2 ----------
-   Analysis runs once, on load, on the main thread; only the lookup crosses into
-   the worklet, and that half is in the shared signal block. The grid is
-   log-spaced - 12 bands to the octave from A0 - rather than linear FFT bins,
-   because the question asked of it is "how much energy is at this partial's hz",
-   and a partial's hz is musical. A linear grid would give a semitone at the
-   bottom of the range a fraction of a bin and a semitone at the top hundreds. */
-const AN_FFT=2048, AN_HOP=512, AN_BPO=12, AN_FMIN=27.5, AN_MAXSEC=180, AN_WAVESEC=30;
-function fftMag(re,im,n){                       // in-place radix-2, returns magnitudes in re
-  for(let i=1,j=0;i<n;i++){ let b=n>>1; for(;j&b;b>>=1) j^=b; j^=b;
-    if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; } }
-  for(let len=2;len<=n;len<<=1){ const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
-    for(let i=0;i<n;i+=len){ let cr=1,ci=0;
-      for(let k=0;k<len/2;k++){ const ur=re[i+k],ui=im[i+k];
-        const vr=re[i+k+len/2]*cr-im[i+k+len/2]*ci, vi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;
-        re[i+k]=ur+vr; im[i+k]=ui+vi; re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
-        const nr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=nr; } } }
-  for(let i=0;i<n;i++) re[i]=Math.hypot(re[i],im[i]);
-  return re;
-}
-function analyzeSound(mono,rate){
-  const n=Math.min(mono.length,Math.floor(AN_MAXSEC*rate));
-  const nFrames=Math.max(1,Math.floor((n-AN_FFT)/AN_HOP)+1);
-  const nyq=rate/2, fmax=Math.min(20000,nyq);
-  const logMin=Math.log2(AN_FMIN);
-  const nBands=Math.max(1,Math.ceil((Math.log2(fmax)-logMin)*AN_BPO)+1);
-  const bands=new Float32Array(nFrames*nBands), follow=new Float32Array(nFrames);
-  const win=new Float32Array(AN_FFT);
-  for(let i=0;i<AN_FFT;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/AN_FFT);
-  const re=new Float32Array(AN_FFT), im=new Float32Array(AN_FFT);
-  // which band each FFT bin lands in, precomputed once
-  const binBand=new Int32Array(AN_FFT/2);
-  for(let k=1;k<AN_FFT/2;k++){ const hz=k*rate/AN_FFT;
-    const b=Math.round((Math.log2(hz)-logMin)*AN_BPO);
-    binBand[k]=(hz<AN_FMIN||hz>fmax||b<0||b>=nBands)?-1:b; }
-  let bMax=0,fMax=0;
-  for(let f=0;f<nFrames;f++){ const off=f*AN_HOP;
-    let sum=0;
-    for(let i=0;i<AN_FFT;i++){ const s=off+i<n?mono[off+i]:0; sum+=s*s; re[i]=s*win[i]; im[i]=0; }
-    follow[f]=Math.sqrt(sum/AN_FFT); if(follow[f]>fMax) fMax=follow[f];
-    const mag=fftMag(re,im,AN_FFT), row=f*nBands;
-    for(let k=1;k<AN_FFT/2;k++){ const b=binBand[k]; if(b>=0) bands[row+b]+=mag[k]*mag[k]; }
-    for(let b=0;b<nBands;b++){ const v=Math.sqrt(bands[row+b]); bands[row+b]=v; if(v>bMax) bMax=v; } }
-  if(bMax>0) for(let i=0;i<bands.length;i++) bands[i]/=bMax;
-  if(fMax>0) for(let i=0;i<follow.length;i++) follow[i]/=fMax;
-  const wn=Math.min(n,Math.floor(AN_WAVESEC*rate));
-  return {bands,follow,nBands,nFrames,frameRate:rate/AN_HOP,logMin,bpo:AN_BPO,
-          wave:mono.slice(0,wn),waveRate:rate,waveSeconds:wn/rate,
-          seconds:n/rate,truncated:n<mono.length};
-}
-function monoOf(buf){ const n=buf.length, ch=buf.numberOfChannels, m=new Float32Array(n);
-  for(let c=0;c<ch;c++){ const d=buf.getChannelData(c); for(let i=0;i<n;i++) m[i]+=d[i]/ch; }
-  return m; }
-/* ---------- end sound analysis ---------- */
-/* file1/wave1 hold the same analysis record: file1 answers questions about the
-   sound, wave1 hands back the sound itself. One record, two readings, and a
-   structured clone of {file1:A,wave1:A} copies A once. */
-const FILES={file1:null,wave1:null};
-const FILE_SENT=new WeakMap(); let FILE_VER=0;
-function fileNames(){ const o={}; for(const k in FILES) o[k]=1; return o; }
-function filePayload(ctx){ if(!ctx) return FILES;
-  if(FILE_SENT.get(ctx)===FILE_VER) return null;
-  FILE_SENT.set(ctx,FILE_VER); return FILES; }
-function filesChanged(){ FILE_VER++; reseedBuild(); }
-let PATCH_SEED=1, buildBank=makeSignalBank(PATCH_SEED,FILES), VOICE_N=0;
-function reseedBuild(){ buildBank=makeSignalBank(PATCH_SEED,FILES); }
+
+
+
+
+
+
+
 async function loadSoundFile(f){
   if(!f) return;
   const st=$("fileState"); if(st) st.textContent="reading "+f.name+"...";
@@ -882,442 +778,6 @@ function clearSoundFile(){ FILES.file1=null; FILES.wave1=null; filesChanged(); a
 function updateFileUI(){ const st=$("fileState"); if(!st) return; const R=FILES.file1;
   st.textContent=R?(R.name+" - "+R.seconds.toFixed(1)+"s, "+R.nBands+" bands, wave "+R.waveSeconds.toFixed(1)+"s"):"no file - file1() reads 0";
   const b=$("fileClear"); if(b) b.disabled=!R; }
-/* A voice is seeded by patch, pitch and its position in the performance, so a
-   repeated key is not a bit-identical repeat while a whole render still is:
-   reset the counter and the same score gives the same audio every time. */
-function nextVoiceSeed(hz){ return voiceSeed(PATCH_SEED,hz,VOICE_N++); }
-function resetVoiceCounter(){ VOICE_N=0; }
-function rnd(a,b){ return buildBank.rnd(a,b) }
-function noise(x){ return buildBank.noise(x) }
-
-const RESERVED=new Set(("t f0 op OP sum where state S idxMul driftDepth driftRate pi e phi tau inf NaN Infinity " +
-  "sin cos tan asin acos atan atan2 exp log log10 sqrt pow abs min max floor ceil round random rnd " +
-  "iff odd even step between clamp clip01 mod prime fib noise file1 wave1 BANK let const var return if else for while function class new").split(/\s+/));
-const PRELUDE=`
-const tau=Math.PI*2, pi=Math.PI, e=Math.E, phi=(1+Math.sqrt(5))/2, inf=Infinity;
-const sin=Math.sin, cos=Math.cos, tan=Math.tan, asin=Math.asin, acos=Math.acos;
-const atan=Math.atan, atan2=Math.atan2, exp=Math.exp, log=Math.log, log10=Math.log10 || ((x)=>Math.log(x)/Math.LN10);
-const sqrt=Math.sqrt, pow=Math.pow, abs=Math.abs, min=Math.min, max=Math.max, floor=Math.floor, ceil=Math.ceil, round=Math.round;
-/* ---------- signal sources - suite arc 1.1 ----------
-   One registry: name -> factory(seed) -> the callable the grammar sees. Every
-   voice builds its own bank, so a note replays identically instead of drawing
-   fresh entropy each time, and guests that carry data (a dropped file, arc 1.2)
-   join the same bank rather than growing a second path. This text is identical
-   on the main thread and in the worklet: the two must agree or an exported WAV
-   drifts away from what was played. scripts/check_signals.mjs asserts that. */
-function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
-  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
-function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
-function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
-  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
-/* A dropped file read as numbers rather than as audio (arc 1.2). Two call
-   shapes, one question each: f(t) is the loudness follower, f(hz,t) is the
-   energy in the band at hz - which is the keyfollow vocoder, since a partial
-   asks about its own hz and its hz follows the played note. Both come back
-   0..1 over the whole file, so either can be used as a gain unscaled. t is note
-   age, like every other t in the grammar, so each note reads from the start. */
-function makeFileSource(A){
-  const B=A.bands, nb=A.nBands|0, nf=A.nFrames|0, fr=A.frameRate, fol=A.follow;
-  const lo=A.logMin, bpo=A.bpo;
-  const at=t=>{ const x=t*fr; return x<=0?0:(x>=nf-1?nf-1:x); };
-  const follow=t=>{ if(nf<1)return 0; const x=at(t),i=x|0,j=i+1<nf?i+1:i;
-    return fol[i]+(fol[j]-fol[i])*(x-i); };
-  const band=(hz,t)=>{ if(nf<1||!(hz>0))return 0;
-    const y=(Math.log2(hz)-lo)*bpo; if(y<0||y>nb-1)return 0;
-    const x=at(t),i=x|0,j=i+1<nf?i+1:i,fx=x-i;
-    const k=y|0,l=k+1<nb?k+1:k,fy=y-k;
-    const p=B[i*nb+k]+(B[i*nb+l]-B[i*nb+k])*fy;
-    const q=B[j*nb+k]+(B[j*nb+l]-B[j*nb+k])*fy;
-    return p+(q-p)*fx; };
-  return (p,q)=>q===undefined?follow(p):band(p,q);
-}
-/* The same file read as a waveform rather than as a measurement. This is the one
-   shape that carries the file's own signal rather than a description of it, so
-   it is what phase-modulation cross-synthesis wants: the sound itself becomes the
-   modulator. Linear interpolation, silence outside the file, and it stops at
-   whatever the loader kept - a waveform costs about 176 KB per second where the
-   analysis costs 40, so the loader keeps less of it. */
-function makeWaveSource(A){
-  const w=A.wave, rate=A.waveRate, n=w?w.length:0;
-  return t=>{ if(!n)return 0; const x=t*rate; if(x<0||x>=n-1)return 0;
-    const i=x|0, f=x-i; return w[i]+(w[i+1]-w[i])*f; };
-}
-const SIGNALS={
-  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
-  noise:seed=>x=>perlin1(x,seed)
-};
-const SIGKEYS=Object.keys(SIGNALS);
-/* sources: {name: analysis record} for dropped files, shared by every voice. */
-function makeSignalBank(seed,sources){ const bank={};
-  SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); });
-  if(sources) for(const k in sources){ const v=sources[k];   // a source is an analysis record, a callable, or nothing
-    bank[k]=typeof v==="function"?v:(v?(/^wave/.test(k)?makeWaveSource(v):makeFileSource(v)):()=>0); }   // an empty slot reads 0, so a patch survives clearing the file
-  return bank; }
-function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
-/* ---------- end signal sources ---------- */
-const __BANK=(typeof BANK!=="undefined"&&BANK)?BANK:makeSignalBank(1);
-const rnd=__BANK.rnd, noise=__BANK.noise;
-const file1=__BANK.file1||(()=>0), wave1=__BANK.wave1||(()=>0);
-function iff(c,a,b){return c?a:b}
-function odd(n){return Math.abs(Math.round(n))%2?1:0}
-function even(n){return odd(n)?0:1}
-function step(edge,x){return x>=edge?1:0}
-function between(x,a,b){return x>=Math.min(a,b)&&x<=Math.max(a,b)?1:0}
-function clamp(x,a,b){return Math.min(Math.max(x,a),b)}
-function clip01(x){return clamp(x,0,1)}
-function mod(a,b){return ((a%b)+b)%b}
-function fib(n){n=Math.max(0,Math.floor(Math.abs(n)||0));let a=0,b=1;for(let i=0;i<n;i++){const c=a+b;a=b;b=c}return a}
-function prime(n){n=Math.max(1,Math.floor(Math.abs(n)||1));let count=0,x=1;while(count<n){x++;let ok=true;for(let d=2;d*d<=x;d++)if(x%d===0){ok=false;break}if(ok)count++}return x}
-`;
-
-function stripComment(line){
-  const i=line.indexOf("#");
-  return (i>=0?line.slice(0,i):line).trim();
-}
-function jsExpr(expr){
-  return expr.replace(/∞/g,"Infinity").replace(/\binf\b/gi,"Infinity").replace(/\^/g,"**");
-}
-// fold prime()/fib() with constant numeric arguments to literals so the
-// audio thread never runs a trial-division loop per sample (only dynamic
-// args, e.g. prime(S[0]), survive as runtime calls).
-function foldConstCalls(expr){
-  // scans for prime(...)/fib(...) with a balanced-paren argument (subVars wraps
-  // substituted values in parens, so args look like prime((5)+1)) and folds any
-  // whose argument is purely numeric. Dynamic args (S[i], signal names) are left.
-  const fns=["prime","fib"];
-  let guard=0, changed=true;
-  while(changed && guard++<256){
-    changed=false;
-    for(const fn of fns){
-      const re=new RegExp("\\b"+fn+"\\s*\\(");
-      let idx=0, m;
-      while((m=expr.slice(idx).match(re))){
-        const start=idx+m.index;
-        const paren=expr.indexOf("(",start);
-        let depth=0, endp=-1;
-        for(let j=paren;j<expr.length;j++){ const ch=expr[j]; if(ch==="(")depth++; else if(ch===")"){ if(--depth===0){endp=j;break;} } }
-        if(endp<0){ idx=paren+1; continue; }
-        const arg=expr.slice(paren+1,endp);
-        if(/^[-+*/%.\d\s()]+$/.test(arg)){
-          let v; try{ v=Function("return("+arg+")")(); }catch(e){ v=NaN; }
-          if(Number.isFinite(v)){
-            expr=expr.slice(0,start)+String(fn==="prime"?prime(v):fib(v))+expr.slice(endp+1);
-            changed=true; idx=0; continue;
-          }
-        }
-        idx=endp+1;
-      }
-    }
-  }
-  return expr;
-}
-function escRE(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}
-function subVars(expr,vars){
-  let out=expr;
-  for(const [k,v] of Object.entries(vars)){
-    out=out.replace(new RegExp("\\b"+escRE(k)+"\\b","g"),"("+v+")");
-  }
-  return out;
-}
-function evalIndexExpr(expr,vars){
-  const names=Object.keys(vars), vals=Object.values(vars);
-  return Function(...names,PRELUDE+"return Number("+jsExpr(expr)+");")(...vals);
-}
-function evalIndexPred(expr,vars){
-  const names=Object.keys(vars), vals=Object.values(vars);
-  return !!Function(...names,PRELUDE+"return !!("+jsExpr(expr)+");")(...vals);
-}
-function parseIndexSpecs(header,ceilLimit,lineNo){
-  const specs=[];
-  const re=/([A-Za-z_]\w*)\s*=\s*([^.\s]+)\s*\.\.\s*([^\s]+)/g;
-  let m, consumed="";
-  while((m=re.exec(header))){
-    specs.push({name:m[1],from:m[2],to:m[3]});
-    consumed+=m[0]+" ";
-  }
-  if(!specs.length) throw new Error("line "+lineNo+": sum needs n=1..N");
-  const rest=header.replace(re,"").trim();
-  if(rest) throw new Error("line "+lineNo+": could not parse sum header near '"+rest+"'");
-  return specs.map(sp=>{
-    if(RESERVED.has(sp.name)) throw new Error("line "+lineNo+": reserved index name '"+sp.name+"'");
-    let a=Math.round(evalIndexExpr(sp.from,{}));
-    let b=/^(Infinity|\*|inf)$/i.test(sp.to)?ceilLimit:Math.round(evalIndexExpr(sp.to,{}));
-    if(!Number.isFinite(a)||!Number.isFinite(b)) throw new Error("line "+lineNo+": finite sum bounds required");
-    if(b<a) [a,b]=[b,a];
-    if(b-a+1>ceilLimit) b=a+ceilLimit-1;
-    return {name:sp.name,from:a,to:b};
-  });
-}
-function expandSum(rhs,ceilLimit,lineNo){
-  const trimmed=rhs.trim();
-  if(!/^sum\s+/.test(trimmed)) return jsExpr(trimmed);
-  const m=trimmed.match(/^sum\s+(.+?)\s*:\s*([\s\S]+)$/);
-  if(!m) throw new Error("line "+lineNo+": malformed sum");
-  const specs=parseIndexSpecs(m[1],ceilLimit,lineNo);
-  let body=m[2].trim(), where="";
-  const wi=body.search(/\s+where\s+/);
-  if(wi>=0){ where=body.slice(wi+7).trim(); body=body.slice(0,wi).trim(); }
-  const terms=[];
-  function walk(i,vars){
-    if(i===specs.length){
-      if(!where || evalIndexPred(where,vars)) terms.push("("+subVars(jsExpr(body),vars)+")");
-      return;
-    }
-    const sp=specs[i];
-    for(let v=sp.from;v<=sp.to;v++) walk(i+1,{...vars,[sp.name]:v});
-  }
-  walk(0,{});
-  if(!terms.length) return "0";
-  return "("+terms.join("+")+")";
-}
-/* cut : r : depth : Q - a zero over the woven output. Moire is where this is
-   not sugar: its sidebands are emergent, produced by the interference rather
-   than written down, so there is no line whose amplitude could be scaled to
-   reach one. A series zero after the sum is the only way to sculpt them. */
-function parseCut(line,lineNo){
-  const c=line.replace(/^cut\b/i,"").replace(/^\s*:/,"").split(":").map(x=>x.trim());
-  const r=Number(evalIndexExpr(c[0],{}));
-  if(!(r>0)) throw new Error("line "+lineNo+": cut needs a ratio > 0");
-  const depth=c.length>1?Number(evalIndexExpr(c[1],{})):1;
-  const q=c.length>2?Number(evalIndexExpr(c[2],{})):30;
-  if(!isFinite(q)||q<=0) throw new Error("line "+lineNo+": cut needs a finite Q > 0");
-  return {ratio:r,depth:isFinite(depth)?depth:1,q:Math.max(.5,q)};
-}
-function parseProgram(text,ceilLimit,cuts){
-  const lines=[];
-  text.split(/\r?\n/).forEach((raw,idx)=>{
-    const line=stripComment(raw);
-    if(!line) return;
-    if(/^cut\b/i.test(line)){ if(cuts) cuts.push(parseCut(line,idx+1)); return; }
-    const colon=line.indexOf(":");
-    if(colon>0){
-      const lhs=line.slice(0,colon).trim();
-      if(/^[A-Za-z_]\w*$/.test(lhs)){
-        if(RESERVED.has(lhs)) throw new Error("line "+(idx+1)+": reserved signal name '"+lhs+"'");
-        lines.push({name:lhs,expr:line.slice(colon+1).trim(),lineNo:idx+1});
-        return;
-      }
-    }
-    lines.push({name:"y",expr:line,lineNo:idx+1});
-  });
-  if(!lines.length) throw new Error(cuts&&cuts.length?"a cut needs something to cut - write a weave too":"empty weave");
-  const seen=new Set();
-  for(const ln of lines){
-    if(seen.has(ln.name)) throw new Error("line "+ln.lineNo+": duplicate signal '"+ln.name+"'");
-    seen.add(ln.name);
-  }
-  return lines;
-}
-function replaceSignalRefs(expr,names,currentIndex){
-  let out=expr;
-  names.forEach((name,j)=>{
-    if(j>=currentIndex){
-      out=out.replace(new RegExp("\\b"+escRE(name)+"\\b","g"),"S["+j+"]");
-    }
-  });
-  return out;
-}
-function instrumentOps(expr,counter){
-  return expr.replace(/\bop\s*\(/g,()=>{ const i=counter.n++; return "OP("+i+","; });
-}
-function compileProgram(text){
-  const ceilLimit=clamp(parseInt($("ceil").value,10)||40,1,96);
-  const cuts=[];
-  const lines=parseProgram(text,ceilLimit,cuts);
-  const names=lines.map(l=>l.name);
-  const outputIndex=names.includes("y")?names.indexOf("y"):names.length-1;
-  const opCounter={n:0};
-  const code=[];
-  lines.forEach((ln,i)=>{
-    let ex=expandSum(ln.expr,ceilLimit,ln.lineNo);
-    ex=foldConstCalls(ex);
-    ex=replaceSignalRefs(ex,names,i);
-    ex=instrumentOps(ex,opCounter);
-    code.push("let "+ln.name+"=Number("+ex+"); if(!Number.isFinite("+ln.name+")) "+ln.name+"=0;");
-  });
-  names.forEach((name,i)=>code.push("S["+i+"]="+name+";"));
-  const outName=names[outputIndex];
-  const ownsEnv=lines.some(l=>/\bt\b/.test(stripComment(l.expr)));
-  // Carrier phase integrates a per-op accumulator (PH[i]) instead of sin(2π r f0 t):
-  // when r or f0 varies (drift, glide, r(t)) a stateless t-multiply accrues phase
-  // error linear in note age; integrating dphi = 2π r f0 dt keeps it exact.
-  const source=`"use strict";  // compiled with BANK = this voice's signal bank
-${PRELUDE}
-return function(t,f0,state,idxMul,driftDepth,driftRate,dt){
-  const S=state.s, PH=state.ph;
-  function OP(i,r,p){
-    r=Number(r); p=Number(p||0);
-    if(!Number.isFinite(r)) r=0;
-    let cents=0;
-    if(driftDepth){
-      cents=(state.rnd[i]||0)*driftDepth + Math.sin(tau*driftRate*t + (state.lfo[i]||0))*driftDepth*.35;
-    }
-    const rr=r*Math.pow(2,cents/1200);
-    PH[i]=(PH[i]+tau*rr*f0*dt)%tau;
-    return Math.sin(PH[i] + p*idxMul);
-  }
-  ${code.join("\n  ")}
-  let out=${outName};
-  if(!Number.isFinite(out)) out=0;
-  return Math.max(-2,Math.min(2,out));
-}`;
-  const fn=(new Function(source))();
-  return {source,fn,cuts,lineCount:lines.length,opCount:opCounter.n,output:outName,ownsEnv,ceil:ceilLimit,names,
-    lines:lines.map(l=>({name:l.name,expr:l.expr})),outputName:outName};
-}
-
-const WORKLET_SRC=`
-/* Populated once per AudioWorkletGlobalScope - that is, once per audio context
-   - by whichever voice carried the payload. */
-const FILEBANK={};
-function lookupFile(name){ return (a,b)=>{ const f=FILEBANK[name]; return f?f(a,b):0; }; }
-/* ---------- signal sources - suite arc 1.1 ----------
-   One registry: name -> factory(seed) -> the callable the grammar sees. Every
-   voice builds its own bank, so a note replays identically instead of drawing
-   fresh entropy each time, and guests that carry data (a dropped file, arc 1.2)
-   join the same bank rather than growing a second path. This text is identical
-   on the main thread and in the worklet: the two must agree or an exported WAV
-   drifts away from what was played. scripts/check_signals.mjs asserts that. */
-function mulberry32(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
-  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-function hash32(x){ x=Math.imul((x>>>0)^0x9E3779B9,0x85EBCA6B); x^=x>>>13; x=Math.imul(x,0xC2B2AE35); return (x^x>>>16)>>>0; }
-function grad1(i,seed){ return hash32(Math.imul(i|0,1836311903)^seed)/2147483648-1; }
-function perlin1(x,seed){ if(!isFinite(x))return 0; const i=Math.floor(x),f=x-i,u=f*f*f*(f*(f*6-15)+10);
-  const a=grad1(i,seed)*f, b=grad1(i+1,seed)*(f-1); return 2*(a+(b-a)*u); }
-/* A dropped file read as numbers rather than as audio (arc 1.2). Two call
-   shapes, one question each: f(t) is the loudness follower, f(hz,t) is the
-   energy in the band at hz - which is the keyfollow vocoder, since a partial
-   asks about its own hz and its hz follows the played note. Both come back
-   0..1 over the whole file, so either can be used as a gain unscaled. t is note
-   age, like every other t in the grammar, so each note reads from the start. */
-function makeFileSource(A){
-  const B=A.bands, nb=A.nBands|0, nf=A.nFrames|0, fr=A.frameRate, fol=A.follow;
-  const lo=A.logMin, bpo=A.bpo;
-  const at=t=>{ const x=t*fr; return x<=0?0:(x>=nf-1?nf-1:x); };
-  const follow=t=>{ if(nf<1)return 0; const x=at(t),i=x|0,j=i+1<nf?i+1:i;
-    return fol[i]+(fol[j]-fol[i])*(x-i); };
-  const band=(hz,t)=>{ if(nf<1||!(hz>0))return 0;
-    const y=(Math.log2(hz)-lo)*bpo; if(y<0||y>nb-1)return 0;
-    const x=at(t),i=x|0,j=i+1<nf?i+1:i,fx=x-i;
-    const k=y|0,l=k+1<nb?k+1:k,fy=y-k;
-    const p=B[i*nb+k]+(B[i*nb+l]-B[i*nb+k])*fy;
-    const q=B[j*nb+k]+(B[j*nb+l]-B[j*nb+k])*fy;
-    return p+(q-p)*fx; };
-  return (p,q)=>q===undefined?follow(p):band(p,q);
-}
-/* The same file read as a waveform rather than as a measurement. This is the one
-   shape that carries the file's own signal rather than a description of it, so
-   it is what phase-modulation cross-synthesis wants: the sound itself becomes the
-   modulator. Linear interpolation, silence outside the file, and it stops at
-   whatever the loader kept - a waveform costs about 176 KB per second where the
-   analysis costs 40, so the loader keeps less of it. */
-function makeWaveSource(A){
-  const w=A.wave, rate=A.waveRate, n=w?w.length:0;
-  return t=>{ if(!n)return 0; const x=t*rate; if(x<0||x>=n-1)return 0;
-    const i=x|0, f=x-i; return w[i]+(w[i+1]-w[i])*f; };
-}
-const SIGNALS={
-  rnd:seed=>{ const g=mulberry32(seed); return (a,b)=>{ const u=g(); if(a==null)return u; if(b==null){b=a;a=0;} return a+u*(b-a); }; },
-  noise:seed=>x=>perlin1(x,seed)
-};
-const SIGKEYS=Object.keys(SIGNALS);
-/* sources: {name: analysis record} for dropped files, shared by every voice. */
-function makeSignalBank(seed,sources){ const bank={};
-  SIGKEYS.forEach((k,i)=>{ bank[k]=SIGNALS[k](hash32((seed>>>0)+Math.imul(i+1,0x9E3779B9))); });
-  if(sources) for(const k in sources){ const v=sources[k];   // a source is an analysis record, a callable, or nothing
-    bank[k]=typeof v==="function"?v:(v?(/^wave/.test(k)?makeWaveSource(v):makeFileSource(v)):()=>0); }   // an empty slot reads 0, so a patch survives clearing the file
-  return bank; }
-function voiceSeed(patchSeed,hz,n){ return hash32(((patchSeed>>>0)^Math.imul(Math.round((hz||0)*100)|0,2654435761)^Math.imul((n|0)+1,0x27D4EB2F))>>>0); }
-/* ---------- end signal sources ---------- */
-class MoireVoice extends AudioWorkletProcessor{
-  constructor(options){
-    super();
-    const o=(options&&options.processorOptions)||{};
-    this.configure(o);
-    this.port.onmessage=e=>{
-      const m=e.data||{};
-      if(m.type==="release") this.release();
-      if(m.type==="setf0") this.f0=+m.value||this.f0;
-      if(m.type==="params"){
-        this.idxMul=+m.idxMul; this.driftDepth=+m.driftDepth; this.driftRate=+m.driftRate;
-        this.gain=+m.gain; this.adsr=m.adsr||this.adsr;
-      }
-      if(m.type==="panic") this.alive=false;
-    };
-  }
-  configure(o){
-    if(o.fileData) for(const k in o.fileData) FILEBANK[k]=o.fileData[k]?(/^wave/.test(k)?makeWaveSource(o.fileData[k]):makeFileSource(o.fileData[k])):null;
-    const refs={}; if(o.files) for(const k in o.files) refs[k]=lookupFile(k);
-    this.bank=makeSignalBank(o.seed==null?1:o.seed,refs);   // one bank per voice
-    this.fn=o.source?(new Function("BANK",o.source))(this.bank):null;
-    const spread=mulberry32(hash32((o.seed==null?1:o.seed)+0x5F356495));
-    const lc=Math.max(1,o.lineCount||1), oc=Math.max(1,o.opCount||1);
-    this.state={s:new Float64Array(lc),rnd:new Float64Array(oc),lfo:new Float64Array(oc),ph:new Float64Array(oc)};
-    this.cuts=o.cuts||[]; this.cre=new Float64Array(this.cuts.length); this.cim=new Float64Array(this.cuts.length);
-    for(let i=0;i<oc;i++){this.state.rnd[i]=spread()*2-1;this.state.lfo[i]=spread()*Math.PI*2}
-    this.f0=+o.f0||220; this.vel=+o.vel||.8; this.gain=+o.gain||.7;
-    this.idxMul=+o.idxMul; this.driftDepth=+o.driftDepth||0; this.driftRate=+o.driftRate||.2;
-    this.adsr=o.adsr||{a:.01,d:.5,s:.4,r:1};
-    // scheduled start/release in ctx-time seconds (used by offline MIDI render).
-    // defaults: startAt 0 (sound now) / relAt Infinity (release only on message).
-    this.startAt=+o.startAt||0; this.relAt=(o.relAt==null?Infinity:+o.relAt);
-    this.t=0; this.env=0; this.stage="a"; this.stageT=0; this.relStart=0; this.alive=true;
-  }
-  release(){ if(this.stage!=="r"){this.stage="r";this.stageT=0;this.relStart=this.env;} }
-  envStep(dt){
-    const a=Math.max(0,this.adsr.a||0), d=Math.max(0,this.adsr.d||0), s=Math.max(0,Math.min(1,this.adsr.s==null?.4:this.adsr.s)), r=Math.max(.005,this.adsr.r||.2);
-    this.stageT+=dt;
-    if(this.stage==="a"){
-      this.env=a?Math.min(1,this.stageT/a):1;
-      if(this.env>=1){this.stage="d";this.stageT=0}
-    }else if(this.stage==="d"){
-      const u=d?Math.min(1,this.stageT/d):1;
-      this.env=1+(s-1)*u;
-      if(u>=1){this.stage="s";this.stageT=0;this.env=s}
-    }else if(this.stage==="s"){
-      this.env=s;
-    }else{
-      const u=Math.min(1,this.stageT/r);
-      this.env=this.relStart*(1-u);
-      if(u>=1||this.env<1e-4) this.alive=false;
-    }
-    return this.env;
-  }
-  /* Feedforward: each zero reads the signal handed to it, never its own output,
-     so it cannot ring. 2*(1-rr) is the unity-gain scale at the centre - a real
-     input splits into two exponentials and the resonator answers one, so half
-     the factor would leave a 6 dB dip where depth 1 should be a null. Centre is
-     f0*ratio, so a zero keyfollows the played note like everything else here. */
-  applyCuts(y,dt){
-    const C=this.cuts; if(!C.length) return y;
-    const sr=1/dt, TAU=Math.PI*2;
-    for(let c=0;c<C.length;c++){
-      const hz=this.f0*C[c].ratio, w=TAU*hz/sr, rr=Math.exp(-Math.PI*hz/C[c].q/sr);
-      const re=this.cre[c], im=this.cim[c];
-      this.cre[c]=rr*Math.cos(w)*re - rr*Math.sin(w)*im + y;
-      this.cim[c]=rr*Math.cos(w)*im + rr*Math.sin(w)*re;
-      y -= 2*(1-rr)*C[c].depth*this.cre[c];
-    }
-    return y;
-  }
-  process(ins,outs){
-    const L=outs[0][0], R=outs[0][1]||L, dt=1/sampleRate;
-    for(let i=0;i<L.length;i++){
-      const now=(currentFrame+i)/sampleRate;
-      if(now<this.startAt){ L[i]=0; R[i]=0; continue; }
-      if(this.relAt!==Infinity && now>=this.relAt) this.release();
-      const g=this.envStep(dt);
-      let y=this.fn&&this.alive?this.fn(this.t,this.f0,this.state,this.idxMul,this.driftDepth,this.driftRate,dt):0;
-      y=this.applyCuts(y,dt);
-      const v=Math.max(-1,Math.min(1,y*g*this.vel*this.gain*.28));
-      L[i]=v; R[i]=v; this.t+=dt;
-    }
-    return this.alive;
-  }
-}
-registerProcessor("moire-voice",MoireVoice);
-`;
 
 class FallbackVoice{
   /* Feedforward: each zero reads the signal handed to it, never its own output,
@@ -1412,7 +872,7 @@ function updateControlLabels(){
   for(const v of voices.values()) v.post({type:"params",...p});
 }
 ["ix","gain","driftDepth","driftRate","atk","dec","sus","rel"].forEach(id=>$(id).addEventListener("input",updateControlLabels));
-const applySeed=()=>{ PATCH_SEED=(parseInt($("seed").value,10)||0)>>>0; reseedBuild(); applyGrammar(); };
+const applySeed=()=>{ setPatchSeed(parseInt($("seed").value,10)||0); reseedBuild(); applyGrammar(); };
 $("seed").addEventListener("change",applySeed);
 $("reseed").addEventListener("click",()=>{ $("seed").value=String((Math.random()*1e6)|0); applySeed(); });
 $("soundFile").addEventListener("change",e=>{ loadSoundFile(e.target.files[0]); e.target.value=""; });
@@ -1420,7 +880,7 @@ $("fileClear").addEventListener("click",clearSoundFile);
 
 function applyGrammar(){
   try{
-    CURRENT=compileProgram(srcEl.value);
+    CURRENT=compileProgram(srcEl.value, Math.min(96,Math.max(1,parseInt($("ceil").value,10)||40)));
     errEl.style.display="none";
     $("compileChip").textContent=CURRENT.lineCount+" lines / "+CURRENT.opCount+" ops"+(CURRENT.cuts.length?" / "+CURRENT.cuts.length+" cut":"");
     $("plateRead").textContent="compiled "+CURRENT.names.join(" -> ");
@@ -1524,9 +984,7 @@ async function initAudio(){
   master.connect(analyser);
   analyser.connect(AC.destination);
   try{
-    const url=URL.createObjectURL(new Blob([WORKLET_SRC],{type:"application/javascript"}));
-    await AC.audioWorklet.addModule(url);
-    URL.revokeObjectURL(url);
+    await AC.audioWorklet.addModule(WORKLET_URL);
     workletReady=true;
     audioMode="worklet";
   }catch(e){
@@ -1676,8 +1134,7 @@ async function renderMidiOffline(){
   resetVoiceCounter();   // the same score renders to the same audio every time
   const sr=44100, tail=(p.adsr.r||1)+2, len=Math.max(1,Math.ceil((MIDI_DUR+tail)*sr));
   const OC=new Offline(2,len,sr);
-  const url=URL.createObjectURL(new Blob([WORKLET_SRC],{type:"application/javascript"}));
-  await OC.audioWorklet.addModule(url); URL.revokeObjectURL(url);
+  await OC.audioWorklet.addModule(WORKLET_URL);
   const mst=OC.createGain(); mst.gain.value=1; mst.connect(OC.destination);
   for(let k=0;k<MIDI_NOTES.length;k++){
     const nt=MIDI_NOTES[k];
@@ -2047,6 +1504,14 @@ window.__moire={
   renderMidiOffline,
   onMIDI, toggleMath, renderMath, lineToTex
 };
+/* Module scope is not the window. This handle exists for debugging and for the
+   verification runs that check a render against a known answer; no page code
+   uses it. */
+window.moire={ compileProgram, analyzeSound, monoOf, fftMag, makeSignalBank,
+  makeFileSource, makeWaveSource, voiceSeed, FILES, filesChanged, fileNames, filePayload,
+  setPatchSeed, getPatchSeed, reseedBuild, resetVoiceCounter, nextVoiceSeed,
+  applyGrammar, currentParams, loadSoundFile, clearSoundFile, WORKLET_URL,
+  get CURRENT(){ return CURRENT; } };
 </script>
 </body>
 </html>

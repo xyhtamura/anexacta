@@ -1,16 +1,15 @@
 /* Suite arc 1.1-1.3 - checks the signal seam across Anexacta.
  *
- * Aliquoto's and cella's engines are extracted into ES modules, so their checks
- * IMPORT the real code and run it. Nothing is scraped, nothing is re-evaluated out of a string,
- * and there is no second copy to disagree with - the page and worklet.js both
- * import signals.js. The two remaining questions for it are whether the modules
- * behave and whether an inline copy has crept back into index.html.
+ * All three engines are extracted into ES modules, so every check IMPORTS the
+ * real code and runs it. Nothing is scraped and nothing is re-evaluated out of a
+ * string. Each tool's page and worklet.js import the same signals.js, so there is
+ * no second copy to disagree with, and what is left to ask is whether the modules
+ * behave and whether a pasted copy has crept back in.
  *
- * Moire still carries the block inline, three times, inside worklet template
- * literals. For it the old method still applies, including evaluating the
- * worklet as a template literal before parsing it - reading the raw text is what
- * let Spolium ship a worklet that threw on every construction while its tests
- * passed.
+ * The inline path below is kept for a tool that is not extracted - a new member,
+ * or one mid-extraction. It evaluates a worklet as a template literal before
+ * parsing it, because reading the raw text is what let Spolium ship a worklet
+ * that threw on every construction while its tests passed.
  *
  * Usage:  node anexacta/scripts/check_signals.mjs [tool ...]
  */
@@ -140,7 +139,10 @@ for (const tool of tools) {
        the exception - it cannot run outside an AudioWorkletGlobalScope, so a
        ReferenceError for one of that scope's names means it parsed and linked,
        while a SyntaxError means it did not. */
-    for (const f of ["signals.js", "analysis.js", "dsl.js"]) {
+    /* moire's counterpart to dsl.js is compiler.js - it compiles a whole weave
+       into one function rather than parsing a grammar into partials. */
+    const core = existsSync(join(ROOT, tool, "dsl.js")) ? "dsl.js" : "compiler.js";
+    for (const f of ["signals.js", "analysis.js", core]) {
       let ok = true;
       try { await import(pathToFileURL(join(ROOT, tool, f)).href); }
       catch (e) { ok = false; console.log(`        ${e.message}`); }
