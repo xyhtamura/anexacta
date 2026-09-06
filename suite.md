@@ -10,10 +10,9 @@ own `.md` (`aliquoto/aliquoto.md`, `cella/cella.md`, `moire/moire.md`,
 `physa/physa.md`).*
 
 Shipped (2026-07): **Aliquoto**, **Cella**, **Moire**, in their own subdirectories
-of the shared repository. Cella and Moire are each a single self-contained
-`index.html`; **Aliquoto is not, as of 2026-09-06** — its engine is extracted into
-ES modules beside the page, so it must be served rather than opened from disk.
-Cella and Moire follow, one at a time.
+of the shared repository. **Aliquoto and Cella have their engines extracted into
+ES modules** beside the page (2026-09-06), so they must be served rather than
+opened from disk. Moire is still a single self-contained `index.html` and is next.
 Shipped (2026-08): **Physa**, the memristive element as its own member, and the
 first entity in the suite that carries state between evaluations.
 Shipped (2026-08): **Spolium**, the quoted spectrum granular instrument with
@@ -973,3 +972,39 @@ deliberately not attempted yet. The order is cella and moire extracted the same
 way first, so that three real module sets exist to compare, and only then hoist
 what is genuinely common into `anexacta/`. Hoisting from one example would be
 guessing at the interface.
+
+**2026-09-06 — Claude Code.** Extracted **cella's engine**, second of three, to
+the same shape as aliquoto's: `signals.js`, `analysis.js`, `dsl.js`, `worklet.js`,
+and an `index.html` that fell from 1935 lines to 1500 and is now the UI.
+
+Two things are worth recording beyond "it worked the same way".
+
+**`signals.js` is byte-identical to aliquoto's, so there are now two copies of a
+file instead of four copies of a pasted block.** The extraction script asserts
+that rather than assuming it, and refuses to overwrite if cella's text had
+drifted. This is the point at which hoisting one shared `anexacta/signals.js`
+starts to look obviously right — but the plan holds: moire next, then hoist, so
+the interface is drawn from three examples instead of guessed from two.
+
+**`dsl.js` is where the fork is visible.** Cella's is not aliquoto's with
+different constants: same `compileExpr` and `MENV`, but `buildPartials` returns
+`{parts, cuts, meta}`, carries a Q column, a `q` law line, `cut` lines, and no
+per-partial ADSR. Putting the two side by side as files makes the shared part and
+the forked part legible in a way the pasted copies never were, and it is the
+first concrete evidence about what a common engine could actually hold: the
+expression DSL yes, the grammar no.
+
+**Verified**: the default patch renders to peak 1.456381559 / RMS 0.370806949
+with the same four sample values to nine decimals as before the extraction. Every
+arc reproduces exactly — renders repeat bit-exactly at one seed; the parallel
+subtract is −31.9 dB under common drive and +3 dB under independent; the cut is
+−17.6 dB on a line, −13.7 dB between lines, 0.0 dB at the neighbour; a dropped
+file still loads as both excitation and analysis and `q : 20+200*file1(t)` still
+resolves as 10 t-dynamic modes. Console clean.
+
+**Not seen**, same caveat as aliquoto: the browser pane is hidden here, so
+layout-dependent drawing was not observed.
+
+**Left undone**: the same partial extraction as aliquoto — `dsl.js` holds moved
+state rather than redesigned state, and voice construction (`realizeNote`,
+`FallbackCella`) is still in the page reading the DOM.

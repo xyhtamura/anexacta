@@ -1,13 +1,14 @@
 /* Suite arc 1.1-1.3 - checks the signal seam across Anexacta.
  *
- * Aliquoto's engine is extracted into ES modules, so its checks IMPORT the real
+ * Aliquoto's and cella's engines are extracted into ES modules, so their checks
+ * IMPORT the real
  * code and run it. Nothing is scraped, nothing is re-evaluated out of a string,
  * and there is no second copy to disagree with - the page and worklet.js both
  * import signals.js. The two remaining questions for it are whether the modules
  * behave and whether an inline copy has crept back into index.html.
  *
- * Cella and moire still carry the block inline, twice and three times, inside
- * worklet template literals. For them the old method still applies, including
+ * Moire still carries the block inline, three times, inside worklet template
+ * literals. For it the old method still applies, including
  * evaluating each worklet as a template literal before parsing it - reading the
  * raw text is what let Spolium ship a worklet that threw on every construction
  * while its tests passed.
@@ -118,6 +119,7 @@ function behaviour(api, label) {
 
 /* ---------- run ---------- */
 const inlineCode = [];
+const extracted = [];
 for (const tool of tools) {
   const path = join(ROOT, tool, "index.html");
   if (!existsSync(path)) { console.log(`\n${tool}\n  SKIP  no index.html`); continue; }
@@ -156,6 +158,7 @@ for (const tool of tools) {
     if (wkVerdict) console.log(`        ${wkVerdict}`);
     check(wkVerdict === null, `${tool}: worklet.js parses and links (only its audio-scope globals are missing)`);
     behaviour(api, tool);
+    extracted.push(tool);
     continue;
   }
 
@@ -178,7 +181,21 @@ for (const tool of tools) {
   behaviour(api, tool);
 }
 
-/* cross-tool: the pasted copies must match the extracted canonical code */
+/* cross-tool: an extracted tool's shared files must be byte-identical to
+   aliquoto's, which is what makes hoisting them into one engine a move rather
+   than a merge. */
+if (extracted.length > 1) {
+  console.log("\nextracted tools");
+  const ref = extracted[0];
+  for (const f of ["signals.js", "analysis.js"]) {
+    const canon = readFileSync(join(ROOT, ref, f), "utf8");
+    for (const tool of extracted.slice(1))
+      check(readFileSync(join(ROOT, tool, f), "utf8") === canon,
+        `${tool}/${f} is byte-identical to ${ref}/${f}`);
+  }
+}
+
+/* the pasted copies must match the extracted canonical code */
 if (inlineCode.length) {
   console.log("\ncross-tool");
   const canonPath = join(ROOT, "aliquoto", "signals.js");

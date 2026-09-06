@@ -524,3 +524,32 @@ a patch with no negative amplitude. Console clean.
 
 **Left undone**: no `sum` form for cuts, so a family of zeros is written out one
 line at a time; nothing normalises for a cut, so depth and master interact.
+
+## 2026-09-06 — Claude Code — the engine extraction
+
+Same five-file shape as aliquoto; detail and measurements in `../suite.md`. How
+to work on it now:
+
+- **`signals.js` is imported by both `index.html` and `worklet.js`** — one copy.
+  It is byte-identical to `../aliquoto/signals.js`; `scripts/check_signals.mjs`
+  asserts that, and the two become one file when moire is extracted and the
+  shared engine is hoisted.
+- **`worklet.js` must stay loadable by URL.** Turn it back into a Blob and its
+  `import` breaks — a Blob cannot resolve a relative specifier. The page builds
+  `WORKLET_URL` with `new URL("./worklet.js", import.meta.url)`; all three
+  `addModule` calls (live, WAV export, `renderTest`) use it.
+- **`dsl.js` is the fork, and it is where cella differs from aliquoto**:
+  `buildPartials` returns `{parts, cuts, meta}`, there is a Q column, a `q` law
+  line, `cut` lines, and no per-partial ADSR. It owns the mutable state — patch
+  seed, voice counter, `FILES`, build bank — behind `setPatchSeed` /
+  `getPatchSeed` / `getBuildBank`, because an imported binding cannot be assigned.
+- **The page script is `type="module"`**, so nothing is on `window`. Use
+  `window.cella`, the debug handle at the bottom, which also exposes
+  `NOISE_COMMON` as a getter/setter and the excitation loaders.
+- **It must be served.** `file://` is gone; module CORS forbids it.
+
+**Left undone**: voice construction — `realizeNote` and `FallbackCella` — is still
+in the page and still reads the DOM, so the plan's "voice alloc" is not in the
+core. Nobody has looked at the extracted page; the browser pane is hidden here, so
+it was checked by DOM and by renders matching the pre-extraction build to nine
+decimals.
